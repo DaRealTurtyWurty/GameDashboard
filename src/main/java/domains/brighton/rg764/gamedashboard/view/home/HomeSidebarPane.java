@@ -1,5 +1,6 @@
 package domains.brighton.rg764.gamedashboard.view.home;
 
+import domains.brighton.rg764.gamedashboard.data.Database;
 import domains.brighton.rg764.gamedashboard.data.Game;
 import domains.brighton.rg764.gamedashboard.util.Utils;
 import domains.brighton.rg764.gamedashboard.view.general.GameSidebarEntry;
@@ -14,6 +15,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.TextAlignment;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -49,8 +51,12 @@ public class HomeSidebarPane extends VBox {
 
             this.subtitle = new Label("Welcome to the Game Dashboard!");
             this.subtitle.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
+            this.subtitle.setWrapText(true);
+            this.subtitle.setMaxWidth(200);
+            this.subtitle.setTextAlignment(TextAlignment.CENTER);
+            this.subtitle.setAlignment(Pos.CENTER);
 
-            this.logo = new ImageView("https://placehold.it/50x50");
+            this.logo = new ImageView("https://via.placeholder.com/50x50");
             this.logo.setFitHeight(50);
             this.logo.setFitWidth(50);
             this.logo.setPreserveRatio(true);
@@ -66,7 +72,7 @@ public class HomeSidebarPane extends VBox {
     }
 
     public static class Content extends BorderPane {
-        private final ObservableList<Game> games = FXCollections.observableArrayList();
+        private final ObservableList<Game> games = Database.getInstance().getGames();
 
         private final Label title;
         private final VBox gamesVBox;
@@ -130,41 +136,23 @@ public class HomeSidebarPane extends VBox {
 
                     return 0;
                 });
-
-                HomeSidebarPane parent = (HomeSidebarPane) getParent();
-                parent.footer.setTotalGames(this.games.size());
             });
         }
     }
 
     public static class Footer extends BorderPane {
-        private final IntegerProperty totalGamesProperty = new SimpleIntegerProperty(0);
-
         private final Label totalGames;
 
         public Footer() {
-            this.totalGames = new Label("Total Games: " + this.totalGamesProperty.get());
+            this.totalGames = new Label("Total Games: 0");
             this.totalGames.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
 
             setCenter(this.totalGames);
             
             setAlignment(this.totalGames, Pos.CENTER);
 
-            this.totalGamesProperty.addListener((observable, oldValue, newValue) ->
-                    this.totalGames.setText("Total Games: " + newValue));
-        }
-
-        public IntegerProperty totalGamesProperty() {
-            return this.totalGamesProperty;
-        }
-
-        public int getTotalGames() {
-            return this.totalGamesProperty.get();
-        }
-
-        public void setTotalGames(int totalGames) {
-            int newValue = Math.min(9999, Math.max(0, totalGames));
-            this.totalGamesProperty.set(newValue);
+            Database.getInstance().getGames().addListener((ListChangeListener.Change<?> change) ->
+                    this.totalGames.setText("Total Games: " + change.getList().size()));
         }
     }
 }
