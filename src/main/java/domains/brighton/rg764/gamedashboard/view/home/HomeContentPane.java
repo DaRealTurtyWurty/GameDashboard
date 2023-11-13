@@ -2,17 +2,26 @@ package domains.brighton.rg764.gamedashboard.view.home;
 
 import domains.brighton.rg764.gamedashboard.data.Database;
 import domains.brighton.rg764.gamedashboard.data.Game;
-import eu.hansolo.tilesfx.tools.FlowGridPane;
+import domains.brighton.rg764.gamedashboard.data.GameService;
+import domains.brighton.rg764.gamedashboard.util.Utils;
+import domains.brighton.rg764.gamedashboard.view.add_game.AddGamePane;
+import domains.brighton.rg764.gamedashboard.view.general.GridGameEntry;
+import eu.hansolo.tilesfx.Tile;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
+import javafx.collections.ListChangeListener;
 import javafx.geometry.Pos;
-import javafx.scene.Node;
+import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
 
+import java.nio.file.Path;
 import java.util.UUID;
 
 public class HomeContentPane extends BorderPane {
@@ -22,43 +31,61 @@ public class HomeContentPane extends BorderPane {
 
     private Button addGameButton;
     private ScrollPane scrollPane;
-    private Node content;
+    private Pane content;
 
     public HomeContentPane() {
         this.addGameButton = new Button("Add Game");
         this.addGameButton.setOnAction(event -> {
             // TODO: Create modal
-            Database.getInstance().addGame(new Game(
-                    "Test Game " + (Database.getInstance().getGames().size() + 1),
-                    "This is a test game",
-                    "https://via.placeholder.com/150",
-                    UUID.randomUUID().toString()
-            ));
+//            Database.getInstance().addGame(new Game(
+//                    "Test Game " + (Database.getInstance().getGames().size() + 1),
+//                    "This is a test game",
+//                    "https://via.placeholder.com/150",
+//                    UUID.randomUUID().toString()
+//            ));
+
+            var pane = new AddGamePane();
+            Scene modalScene = new Scene(pane, 400, 300);
+            // TODO: Add stylesheet
+
+            Stage modal = new Stage();
+            modal.setTitle("Add Game");
+            modal.setScene(modalScene);
+            modal.initOwner(getScene().getWindow());
+            modal.initModality(Modality.APPLICATION_MODAL);
+            modal.setResizable(false);
+            modal.centerOnScreen();
+            modal.showAndWait();
         });
 
         // TODO: Create proper views for the content displays
-        this.contentDisplay.addListener((observable, oldValue, newValue) -> {
-            switch (newValue) {
-                case GRID:
-                    this.content = new FlowGridPane(7, 15);
-                    this.scrollPane = new ScrollPane(this.content);
-                    this.scrollPane.setFitToWidth(true);
-                    this.scrollPane.setFitToHeight(true);
-                    this.contentContainer.getChildren().setAll(this.scrollPane, this.addGameButton);
-                    StackPane.setAlignment(this.addGameButton, Pos.BOTTOM_RIGHT);
-                    break;
-                case LIST, DETAILS:
-                    this.content = new VBox();
-                    this.scrollPane = new ScrollPane(this.content);
-                    this.scrollPane.setFitToWidth(true);
-                    this.scrollPane.setFitToHeight(true);
-                    this.contentContainer.getChildren().setAll(this.scrollPane, this.addGameButton);
-                    StackPane.setAlignment(this.addGameButton, Pos.BOTTOM_RIGHT);
-                    break;
-            }
+
+        this.content = new FlowPane();
+        this.content.setPrefWidth(500);
+        this.content.setPrefHeight(500);
+        this.content.setBackground(Utils.createBackground("#3f3f4a"));
+        this.content.setPadding(Utils.createInsets(15, 15, 15, 15));
+        ((FlowPane)this.content).setHgap(15);
+        ((FlowPane)this.content).setVgap(15);
+        ((FlowPane)this.content).setAlignment(Pos.CENTER);
+
+        this.scrollPane = new ScrollPane(this.content);
+        this.scrollPane.setFitToWidth(true);
+        this.scrollPane.setFitToHeight(true);
+        this.scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        this.scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+
+        this.contentContainer.getChildren().setAll(this.scrollPane, this.addGameButton);
+        this.contentContainer.setAlignment(Pos.CENTER);
+        StackPane.setAlignment(this.addGameButton, Pos.BOTTOM_RIGHT);
+
+        Database.getInstance().getGames().addListener((ListChangeListener<? super Game>) change -> {
+            this.content.getChildren().setAll(Database.getInstance().getGames().stream()
+                    .map(GridGameEntry::new)
+                    .map(GridGameEntry::getTile)
+                    .toArray(Tile[]::new));
         });
 
-        setContentDisplay(ContentDisplay.GRID);
         setCenter(this.contentContainer);
     }
 

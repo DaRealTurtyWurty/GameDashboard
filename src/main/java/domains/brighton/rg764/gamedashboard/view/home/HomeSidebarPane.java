@@ -4,17 +4,19 @@ import domains.brighton.rg764.gamedashboard.data.Database;
 import domains.brighton.rg764.gamedashboard.data.Game;
 import domains.brighton.rg764.gamedashboard.util.Utils;
 import domains.brighton.rg764.gamedashboard.view.general.GameSidebarEntry;
-import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.SimpleIntegerProperty;
-import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.geometry.Pos;
+import javafx.geometry.VPos;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Separator;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
 
 import java.util.ArrayList;
@@ -22,51 +24,74 @@ import java.util.List;
 
 public class HomeSidebarPane extends VBox {
     private final HomeSidebarPane.Header header;
+    private final Separator separator0 = new Separator();
     private final HomeSidebarPane.Content content;
+    private final Separator separator1 = new Separator();
     private final HomeSidebarPane.Footer footer;
 
     public HomeSidebarPane() {
         this.header = new HomeSidebarPane.Header();
         this.header.setPrefHeight(50);
 
+        this.separator0.setPrefHeight(10);
+        this.separator0.setPrefWidth(200);
+        this.separator0.setValignment(VPos.CENTER);
+        this.separator0.setPadding(Utils.createInsets(10, 0, 10, 0));
+
         this.content = new HomeSidebarPane.Content();
         this.content.setPrefHeight(500);
 
-        this.footer = new HomeSidebarPane.Footer();
-        this.footer.setPrefHeight(50);
+        this.separator1.setPrefHeight(10);
+        this.separator1.setPrefWidth(200);
+        this.separator1.setValignment(VPos.CENTER);
+        this.separator1.setPadding(Utils.createInsets(10, 0, 10, 0));
 
-        getChildren().addAll(this.header, this.content, this.footer);
+        this.footer = new HomeSidebarPane.Footer();
+        this.footer.setPrefHeight(30);
+
+        VBox.setVgrow(this.header, Priority.NEVER);
+        VBox.setVgrow(this.content, Priority.ALWAYS);
+        VBox.setVgrow(this.footer, Priority.NEVER);
+
+        getChildren().addAll(this.header, this.separator0, this.content, this.separator1, this.footer);
 
         setBackground(Utils.createBackground("#3f3f4a"));
     }
 
     public static class Header extends BorderPane {
+        private final VBox titleVBox;
         private final Label title;
         private final Label subtitle;
         private final ImageView logo;
 
         public Header() {
             this.title = new Label("Game Dashboard");
-            this.title.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
+            this.title.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+            this.title.setTextFill(Color.web("#eee"));
+            this.title.setWrapText(true);
+            this.title.setTextAlignment(TextAlignment.CENTER);
 
-            this.subtitle = new Label("Welcome to the Game Dashboard!");
+            this.subtitle = new Label("Manage your games");
             this.subtitle.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
+            this.subtitle.setTextFill(Color.web("#eee"));
             this.subtitle.setWrapText(true);
-            this.subtitle.setMaxWidth(200);
             this.subtitle.setTextAlignment(TextAlignment.CENTER);
-            this.subtitle.setAlignment(Pos.CENTER);
+
+            Region spacer = new Region();
+            spacer.setPrefHeight(10);
 
             this.logo = new ImageView("https://via.placeholder.com/50x50");
             this.logo.setFitHeight(50);
             this.logo.setFitWidth(50);
             this.logo.setPreserveRatio(true);
 
-            setTop(this.title);
-            setCenter(this.subtitle);
+            this.titleVBox = new VBox(this.title, this.subtitle, spacer);
+            this.titleVBox.setAlignment(Pos.CENTER);
+
+            setTop(this.titleVBox);
             setBottom(this.logo);
 
-            setAlignment(this.title, Pos.CENTER);
-            setAlignment(this.subtitle, Pos.CENTER);
+            setAlignment(this.titleVBox, Pos.CENTER);
             setAlignment(this.logo, Pos.CENTER);
         }
     }
@@ -75,67 +100,43 @@ public class HomeSidebarPane extends VBox {
         private final ObservableList<Game> games = Database.getInstance().getGames();
 
         private final Label title;
+        private final ScrollPane scrollPane = new ScrollPane();
         private final VBox gamesVBox;
 
         public Content() {
             this.title = new Label("Games");
             this.title.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+            this.title.setTextFill(Color.web("#eee"));
+            this.title.setWrapText(true);
+            this.title.setTextAlignment(TextAlignment.CENTER);
+            this.title.setAlignment(Pos.CENTER);
+            this.title.setMaxWidth(200);
+
+            this.scrollPane.setFitToWidth(true);
+            this.scrollPane.setFitToHeight(true);
+            this.scrollPane.setPrefWidth(200);
+            this.scrollPane.setPrefHeight(500);
+            this.scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+            this.scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
 
             this.gamesVBox = new VBox();
-            this.gamesVBox.setSpacing(10);
+            this.gamesVBox.setSpacing(5);
+            this.gamesVBox.setBackground(Utils.createBackground("#3f3f4a"));
+
+            this.scrollPane.setContent(this.gamesVBox);
+            this.scrollPane.setBackground(Utils.createBackground("#3f3f4a"));
 
             setTop(this.title);
-            setCenter(this.gamesVBox);
+            setCenter(this.scrollPane);
 
             setAlignment(this.title, Pos.CENTER);
-            setAlignment(this.gamesVBox, Pos.CENTER);
+            setAlignment(this.scrollPane, Pos.CENTER);
 
             this.games.addListener((ListChangeListener.Change<?> change) -> {
-                while (change.next()) {
-                    if (change.wasAdded()) {
-                        List<Game> added = change.getAddedSubList()
-                                .stream()
-                                .filter(Game.class::isInstance)
-                                .map(Game.class::cast)
-                                .toList();
-
-                        for (Game game : added) {
-                            this.gamesVBox.getChildren().add(new GameSidebarEntry(game));
-                        }
-                    } else if (change.wasRemoved()) {
-                        List<Game> removed = change.getRemoved()
-                                .stream()
-                                .filter(Game.class::isInstance)
-                                .map(Game.class::cast)
-                                .toList();
-
-                        List<GameSidebarEntry> toRemove = new ArrayList<>();
-                        for (Game game : removed) {
-                            List<GameSidebarEntry> children = this.gamesVBox.getChildren()
-                                    .stream()
-                                    .filter(GameSidebarEntry.class::isInstance)
-                                    .map(GameSidebarEntry.class::cast)
-                                    .toList();
-
-                            for (GameSidebarEntry entry : children) {
-                                if (entry.getGame().equals(game)) {
-                                    toRemove.add(entry);
-                                }
-                            }
-                        }
-
-                        this.gamesVBox.getChildren().removeAll(toRemove);
-                    }
-                }
-
-                // sort the games by title
-                this.gamesVBox.getChildren().sort((object1, object2) -> {
-                    if (object1 instanceof GameSidebarEntry entry1 && object2 instanceof GameSidebarEntry entry2) {
-                        return entry1.getGame().getTitle().compareTo(entry2.getGame().getTitle());
-                    }
-
-                    return 0;
-                });
+                this.gamesVBox.getChildren()
+                        .setAll(this.games.stream()
+                                .map(GameSidebarEntry::new)
+                                .toArray(GameSidebarEntry[]::new));
             });
         }
     }
@@ -146,9 +147,14 @@ public class HomeSidebarPane extends VBox {
         public Footer() {
             this.totalGames = new Label("Total Games: 0");
             this.totalGames.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
+            this.totalGames.setTextFill(Color.web("#eee"));
+            this.totalGames.setWrapText(true);
+            this.totalGames.setTextAlignment(TextAlignment.CENTER);
+            this.totalGames.setAlignment(Pos.CENTER);
+            this.totalGames.setPadding(Utils.createInsets(0, 0, 5, 0));
+            this.totalGames.setMaxWidth(200);
 
             setCenter(this.totalGames);
-            
             setAlignment(this.totalGames, Pos.CENTER);
 
             Database.getInstance().getGames().addListener((ListChangeListener.Change<?> change) ->

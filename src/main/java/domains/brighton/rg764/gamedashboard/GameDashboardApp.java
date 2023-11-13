@@ -9,7 +9,10 @@ public class GameDashboardApp extends Application {
     @Override
     public void start(Stage primaryStage) {
         Scene scene = new Scene(new GameDashboardPane(), 800, 600);
+        scene.getStylesheets().add(getClass().getResource("/css/style.css").toExternalForm());
         primaryStage.setTitle("Game Dashboard");
+        primaryStage.setMinWidth(600);
+        primaryStage.setMinHeight(400);
         primaryStage.setScene(scene);
         primaryStage.centerOnScreen();
         primaryStage.show();
