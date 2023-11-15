@@ -17,4 +17,8 @@ public class GameDashboardApp extends Application {
         primaryStage.centerOnScreen();
         primaryStage.show();
     }
+
+    public static String getAPIKey() {
+
+    }
 }
