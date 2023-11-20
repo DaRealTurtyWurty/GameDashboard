@@ -20,7 +20,7 @@ ext {
 sourceCompatibility = '19'
 targetCompatibility = '19'
 
-tasks.withType(JavaCompile) {
+tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
 
@@ -42,6 +42,9 @@ dependencies {
     implementation('eu.hansolo:tilesfx:17.1.17') {
         exclude(group: 'org.openjfx')
     }
+
+    implementation('io.github.cdimascio:dotenv-java:3.0.0')
+    implementation('com.squareup.okhttp3:okhttp:4.11.0')
 
     implementation('org.projectlombok:lombok:1.18.26')
     annotationProcessor('org.projectlombok:lombok:1.18.26')

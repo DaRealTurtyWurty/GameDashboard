@@ -1,5 +1,8 @@
 package domains.brighton.rg764.gamedashboard.data;
 
+import lombok.Getter;
+
+@Getter
 public enum GameService {
     STEAM("Steam"),
     ORIGIN("Origin"),
@@ -12,9 +15,5 @@ public enum GameService {
 
     GameService(String name) {
         this.name = name;
-    }
-
-    public String getName() {
-        return name;
     }
 }

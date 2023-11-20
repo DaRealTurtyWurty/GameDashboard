@@ -4,25 +4,17 @@ import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.image.Image;
 
 import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
 public class ImageCache {
     private static final Path CACHE_DIR = Path.of(System.getProperty("user.home"), ".cache", "game-dashboard");
     private static final Map<String, Image> CACHE = new HashMap<>();
-
-    static {
-        try {
-            if(Files.notExists(CACHE_DIR)) {
-                Files.createDirectories(CACHE_DIR);
-            }
-        } catch (IOException exception) {
-            exception.printStackTrace(); // TODO: Log exception
-        }
-    }
 
     public static Image getImage(String url) {
         return getImage(url, true, true, false);
@@ -49,7 +41,12 @@ public class ImageCache {
             if(toCache) {
                 CACHE.put(url, image);
 
-                ImageIO.write(SwingFXUtils.fromFXImage(image, null), "png", path.toFile());
+                BufferedImage bufferedImage = SwingFXUtils.fromFXImage(image, null);
+                if (bufferedImage != null) {
+                    ImageIO.write(bufferedImage, "png", path.toFile());
+                } else {
+                    // TODO: Log error
+                }
             }
 
             return image;
@@ -60,20 +57,10 @@ public class ImageCache {
     }
 
     private static String scrambleURL(String url) {
-        var builder = new StringBuilder();
-        for (char c : url.toCharArray()) {
-            builder.append((char) (c + 3));
-        }
-
-        return builder.toString();
+        return Base64.getEncoder().encodeToString(url.getBytes());
     }
 
     private static String unscrambleURL(String url) {
-        var builder = new StringBuilder();
-        for (char c : url.toCharArray()) {
-            builder.append((char) (c - 3));
-        }
-
-        return builder.toString();
+        return new String(Base64.getDecoder().decode(url));
     }
 }

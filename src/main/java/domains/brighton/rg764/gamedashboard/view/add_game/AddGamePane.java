@@ -1,24 +1,32 @@
 package domains.brighton.rg764.gamedashboard.view.add_game;
 
+import domains.brighton.rg764.gamedashboard.data.APIConnector;
 import domains.brighton.rg764.gamedashboard.data.GameService;
+import domains.brighton.rg764.gamedashboard.util.ImageCache;
 import domains.brighton.rg764.gamedashboard.util.Utils;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
+import javafx.application.Platform;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.DirectoryChooser;
+import javafx.util.Duration;
+import javafx.util.StringConverter;
 
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 
 public class AddGamePane extends BorderPane {
@@ -100,7 +108,7 @@ public class AddGamePane extends BorderPane {
                     valid = false;
                 } else {
                     this.gameDirectoryErrorLabel.setVisible(false);
-                    if(!Files.isDirectory(path)) {
+                    if (!Files.isDirectory(path)) {
                         this.gameDirectoryErrorLabel.setText("Game directory must be a directory");
                         this.gameDirectoryErrorLabel.setVisible(true);
                         valid = false;
@@ -167,11 +175,30 @@ public class AddGamePane extends BorderPane {
 
         var serviceContainer = new VBox(serviceHContainer, this.serviceErrorLabel);
 
-        this.serviceComboBox.getItems().addAll(
-                Arrays.stream(GameService.values())
-                        .map(GameService::getName)
-                        .toArray(String[]::new));
-        this.serviceComboBox.setValue(GameService.STEAM.getName());
+        for (GameService service : GameService.values()) {
+            if(service == GameService.OTHER) {
+                this.serviceComboBox.getItems().add(service.getName());
+                continue;
+            }
+
+            if(service != GameService.STEAM) {
+                this.serviceComboBox.getItems().add(service.getName() + " (Coming Soon)");
+            }
+        }
+
+        this.serviceComboBox.setCellFactory(param -> new ListCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+
+                if(item != null && !empty) {
+                    setText(item);
+                    setDisable(!GameService.OTHER.getName().equals(item));
+                }
+            }
+        });
+
+        this.serviceComboBox.setValue(GameService.OTHER.getName());
 
         this.serviceErrorLabel.setVisible(false);
         this.serviceErrorLabel.setTextFill(Color.web("#ff0000"));
@@ -187,7 +214,78 @@ public class AddGamePane extends BorderPane {
         this.gameTitleErrorLabel.setTextFill(Color.web("#ff0000"));
 
         this.gameTitleComboBox.setEditable(true);
-        // TODO: Load game titles based on service
+        this.gameTitleComboBox.setCellFactory(param -> new ListCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+
+                if (item == null || empty) {
+                    setText(null);
+                    setGraphic(null);
+                    return;
+                }
+
+                String[] split = item.split("\\|\\|");
+                setText(split[0]);
+                if (split.length > 1) {
+                    setGraphic(new ImageView(ImageCache.getImage(split[1])));
+                }
+            }
+        });
+
+        this.gameTitleComboBox.editorProperty().get().textProperty().addListener(new ChangeListener<>() {
+            private final Timeline timeline = new Timeline(new KeyFrame(
+                    Duration.millis(500),
+                    event -> {
+                        String newValue = gameTitleComboBox.editorProperty().get().getText();
+                        if (newValue == null || newValue.isBlank())
+                            return;
+
+                        new Thread(() -> {
+                            List<APIConnector.GameResult> gameTitles = APIConnector.search(newValue);
+                            String[] items = gameTitles.stream()
+                                    .map(result -> result.getName() + "||" + result.getCoverURL())
+                                    .toArray(String[]::new);
+                            Platform.runLater(() -> {
+                                if (items.length != 0) {
+                                    gameTitleComboBox.getItems().setAll(items);
+                                    gameTitleComboBox.show();
+                                }
+                            });
+                        }).start();
+                    }
+            ));
+
+            @Override
+            public void changed(ObservableValue<? extends String> observable, String oldValue, String newValue) {
+                gameTitleComboBox.hide();
+                gameTitleComboBox.getItems().clear();
+                this.timeline.stop();
+                this.timeline.play();
+            }
+        });
+
+        this.gameTitleComboBox.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(String object) {
+                if (object == null || object.isBlank())
+                    return "";
+
+                String[] split = object.split("\\|\\|");
+                return split[0];
+            }
+
+            @Override
+            public String fromString(String string) {
+                if (string == null || string.isBlank())
+                    return "";
+
+                return string;
+            }
+        });
+
+        this.gameTitleComboBox.setVisibleRowCount(5);
+        this.gameTitleComboBox.setPrefWidth(300);
 
         var gameDirectoryHContainer = new HBox(gameDirectoryLabel, this.gameDirectoryTextField, this.browseButton);
         gameDirectoryHContainer.setSpacing(10);

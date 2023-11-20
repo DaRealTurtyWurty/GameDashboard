@@ -1,11 +1,19 @@
 package domains.brighton.rg764.gamedashboard;
 
 import domains.brighton.rg764.gamedashboard.view.GameDashboardPane;
+import io.github.cdimascio.dotenv.Dotenv;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 
+import java.util.Optional;
+
 public class GameDashboardApp extends Application {
+    private static final Dotenv ENVIRONMENT = Dotenv.configure()
+            .directory("./env")
+            .filename(".env")
+            .load();
+
     @Override
     public void start(Stage primaryStage) {
         Scene scene = new Scene(new GameDashboardPane(), 800, 600);
@@ -18,7 +26,8 @@ public class GameDashboardApp extends Application {
         primaryStage.show();
     }
 
-    public static String getAPIKey() {
-
+    public static String getAPIKey() throws RuntimeException {
+        return Optional.ofNullable(ENVIRONMENT.get("API_KEY", null))
+                .orElseThrow(() -> new RuntimeException("API key not found"));
     }
 }
