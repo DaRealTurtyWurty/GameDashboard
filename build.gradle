@@ -35,25 +35,19 @@ javafx {
 }
 
 dependencies {
-    implementation('net.synedra:validatorfx:0.4.0') {
-        exclude(group: 'org.openjfx')
-    }
-    implementation('org.kordamp.ikonli:ikonli-javafx:12.3.1')
     implementation('eu.hansolo:tilesfx:17.1.17') {
         exclude(group: 'org.openjfx')
     }
 
     implementation('io.github.cdimascio:dotenv-java:3.0.0')
     implementation('com.squareup.okhttp3:okhttp:4.11.0')
-
-    implementation('org.projectlombok:lombok:1.18.26')
-    annotationProcessor('org.projectlombok:lombok:1.18.26')
-    implementation('org.jetbrains:annotations:24.0.1')
-
     implementation('com.google.code.gson:gson:2.10.1')
     implementation('org.json:json:20230618')
 
-    implementation('io.github.husnjak:igdb-api-jvm:1.1.0')
+    implementation('org.projectlombok:lombok:1.18.26')
+    annotationProcessor('org.projectlombok:lombok:1.18.26')
+
+    implementation('org.jetbrains:annotations:24.0.1')
 
     testImplementation("org.junit.jupiter:junit-jupiter-api:${junitVersion}")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:${junitVersion}")
