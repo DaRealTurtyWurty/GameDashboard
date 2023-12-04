@@ -1,6 +1,7 @@
 package domains.brighton.rg764.gamedashboard.view.add_game;
 
 import domains.brighton.rg764.gamedashboard.data.APIConnector;
+import domains.brighton.rg764.gamedashboard.data.Database;
 import domains.brighton.rg764.gamedashboard.data.GameService;
 import domains.brighton.rg764.gamedashboard.util.ImageCache;
 import domains.brighton.rg764.gamedashboard.util.Utils;
@@ -18,9 +19,10 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
-import javafx.stage.DirectoryChooser;
+import javafx.stage.FileChooser;
 import javafx.util.Duration;
 import javafx.util.StringConverter;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -28,18 +30,23 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class AddGamePane extends BorderPane {
     private final ComboBox<String> serviceComboBox = new ComboBox<>();
     private final Label serviceErrorLabel = new Label();
     private final ComboBox<String> gameTitleComboBox = new ComboBox<>();
     private final Label gameTitleErrorLabel = new Label();
-    private final TextField gameDirectoryTextField = new TextField();
+    private final TextField gameExecutableTextField = new TextField();
     private final Button browseButton = new Button("Browse");
-    private final Label gameDirectoryErrorLabel = new Label();
+    private final Label gameExecutableErrorLabel = new Label();
 
     private final Button cancelButton = new Button("Cancel");
     private final Button nextButton = new Button("Next");
+
+    private final AtomicBoolean closedFromNext = new AtomicBoolean(false);
 
     public AddGamePane() {
         Label title = new Label("Add Game");
@@ -66,6 +73,7 @@ public class AddGamePane extends BorderPane {
 
         this.cancelButton.setOnAction(event -> {
             getScene().getWindow().hide();
+            this.closedFromNext.set(false);
         });
 
         this.nextButton.setOnAction(event -> {
@@ -95,27 +103,38 @@ public class AddGamePane extends BorderPane {
                 this.gameTitleErrorLabel.setVisible(false);
             }
 
-            if (this.gameDirectoryTextField.getText() == null || this.gameDirectoryTextField.getText().isBlank()) {
-                this.gameDirectoryErrorLabel.setText("Please select a game directory");
-                this.gameDirectoryErrorLabel.setVisible(true);
+            if (this.gameExecutableTextField.getText() == null || this.gameExecutableTextField.getText().isBlank()) {
+                this.gameExecutableErrorLabel.setText("Please select the game's executable");
+                this.gameExecutableErrorLabel.setVisible(true);
                 valid = false;
             } else {
-                String dir = this.gameDirectoryTextField.getText();
+                String dir = this.gameExecutableTextField.getText();
                 Path path = Path.of(dir);
                 if (Files.notExists(path)) {
-                    this.gameDirectoryErrorLabel.setText("Invalid game directory");
-                    this.gameDirectoryErrorLabel.setVisible(true);
+                    this.gameExecutableErrorLabel.setText("Invalid game executable");
+                    this.gameExecutableErrorLabel.setVisible(true);
                     valid = false;
                 } else {
-                    this.gameDirectoryErrorLabel.setVisible(false);
-                    if (!Files.isDirectory(path)) {
-                        this.gameDirectoryErrorLabel.setText("Game directory must be a directory");
-                        this.gameDirectoryErrorLabel.setVisible(true);
+                    if (Files.isDirectory(path)) {
+                        this.gameExecutableErrorLabel.setText("Game executable cannot be a directory");
+                        this.gameExecutableErrorLabel.setVisible(true);
+                        valid = false;
+                    } else if (!Files.isExecutable(path)) {
+                        this.gameExecutableErrorLabel.setText("Game executable must be executable");
+                        this.gameExecutableErrorLabel.setVisible(true);
                         valid = false;
                     } else {
-                        this.gameDirectoryErrorLabel.setVisible(false);
+                        this.gameExecutableErrorLabel.setVisible(false);
                     }
                 }
+            }
+
+            if (hasGame(this.gameTitleComboBox.getValue())) {
+                this.gameTitleErrorLabel.setText("Game already exists in database");
+                this.gameTitleErrorLabel.setVisible(true);
+                valid = false;
+            } else {
+                this.gameTitleErrorLabel.setVisible(false);
             }
 
             if (!valid)
@@ -123,16 +142,24 @@ public class AddGamePane extends BorderPane {
 
             GameService service = GameService.valueOf(this.serviceComboBox.getValue().toUpperCase(Locale.ROOT));
             String gameTitle = this.gameTitleComboBox.getValue();
-            Path gameDirectory = Path.of(this.gameDirectoryTextField.getText());
+            Path gameExecutable = Path.of(this.gameExecutableTextField.getText());
 
             Scene scene = getScene();
             switch (service) {
-                case STEAM -> scene.setRoot(new AddSteamGamePane(gameTitle, gameDirectory));
-                case ORIGIN -> scene.setRoot(new AddOriginGamePane(gameTitle, gameDirectory));
-                case EPIC_GAMES -> scene.setRoot(new AddEpicGamesGamePane(gameTitle, gameDirectory));
-                case UPLAY -> scene.setRoot(new AddUplayGamePane(gameTitle, gameDirectory));
-                case BATTLE_NET -> scene.setRoot(new AddBattleNetGamePane(gameTitle, gameDirectory));
-                case OTHER -> scene.setRoot(new AddOtherGamePane(gameTitle, gameDirectory));
+                case STEAM -> scene.setRoot(new AddSteamGamePane(gameTitle, gameExecutable));
+                case ORIGIN -> scene.setRoot(new AddOriginGamePane(gameTitle, gameExecutable));
+                case EPIC_GAMES -> scene.setRoot(new AddEpicGamesGamePane(gameTitle, gameExecutable));
+                case UPLAY -> scene.setRoot(new AddUplayGamePane(gameTitle, gameExecutable));
+                case BATTLE_NET -> scene.setRoot(new AddBattleNetGamePane(gameTitle, gameExecutable));
+                case OTHER -> {
+                    APIConnector.GameResult gameResult = construct();
+                    if (gameResult == null) {
+                        scene.setRoot(new AddOtherGamePane(gameTitle, gameExecutable));
+                    } else {
+                        scene.getWindow().hide();
+                        this.closedFromNext.set(true);
+                    }
+                }
                 default -> {
                     this.serviceErrorLabel.setText("Invalid service, please choose from (" +
                             Arrays.stream(GameService.values())
@@ -150,6 +177,11 @@ public class AddGamePane extends BorderPane {
         return buttons;
     }
 
+    private static boolean hasGame(String gameTitle) {
+        return Database.getInstance().getGames().stream()
+                .anyMatch(game -> game.getTitle().trim().equalsIgnoreCase(gameTitle.trim()));
+    }
+
     private VBox createForm() {
         var form = new VBox();
 
@@ -163,10 +195,10 @@ public class AddGamePane extends BorderPane {
         gameTitleLabel.setAlignment(Pos.CENTER_LEFT);
         gameTitleLabel.setTextFill(Color.web("#eee"));
 
-        var gameDirectoryLabel = new Label("Game Directory");
-        gameDirectoryLabel.setPrefWidth(100);
-        gameDirectoryLabel.setAlignment(Pos.CENTER_LEFT);
-        gameDirectoryLabel.setTextFill(Color.web("#eee"));
+        var gameExecutableLabel = new Label("Game Executable");
+        gameExecutableLabel.setPrefWidth(100);
+        gameExecutableLabel.setAlignment(Pos.CENTER_LEFT);
+        gameExecutableLabel.setTextFill(Color.web("#eee"));
 
         var serviceHContainer = new HBox(serviceLabel, this.serviceComboBox);
         serviceHContainer.setSpacing(10);
@@ -176,12 +208,12 @@ public class AddGamePane extends BorderPane {
         var serviceContainer = new VBox(serviceHContainer, this.serviceErrorLabel);
 
         for (GameService service : GameService.values()) {
-            if(service == GameService.OTHER) {
+            if (service == GameService.OTHER) {
                 this.serviceComboBox.getItems().add(service.getName());
                 continue;
             }
 
-            if(service != GameService.STEAM) {
+            if (service != GameService.STEAM) {
                 this.serviceComboBox.getItems().add(service.getName() + " (Coming Soon)");
             }
         }
@@ -191,7 +223,7 @@ public class AddGamePane extends BorderPane {
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
 
-                if(item != null && !empty) {
+                if (item != null && !empty) {
                     setText(item);
                     setDisable(!GameService.OTHER.getName().equals(item));
                 }
@@ -228,7 +260,10 @@ public class AddGamePane extends BorderPane {
                 String[] split = item.split("\\|\\|");
                 setText(split[0]);
                 if (split.length > 1) {
-                    setGraphic(new ImageView(ImageCache.getImage(split[1])));
+                    ImageView imageView = new ImageView(ImageCache.getImage(split[1]));
+                    imageView.setFitWidth(35);
+                    imageView.setFitHeight(35);
+                    setGraphic(imageView);
                 }
             }
         });
@@ -241,10 +276,10 @@ public class AddGamePane extends BorderPane {
                         if (newValue == null || newValue.isBlank())
                             return;
 
-                        new Thread(() -> {
-                            List<APIConnector.GameResult> gameTitles = APIConnector.search(newValue);
-                            String[] items = gameTitles.stream()
-                                    .map(result -> result.getName() + "||" + result.getCoverURL())
+                        CompletableFuture<List<APIConnector.GameResult>> gameResultsFuture = APIConnector.search(newValue);
+                        gameResultsFuture.thenAccept(gameResults -> {
+                            String[] items = gameResults.stream()
+                                    .map(result -> result.getName() + "||" + result.getThumbCoverURL())
                                     .toArray(String[]::new);
                             Platform.runLater(() -> {
                                 if (items.length != 0) {
@@ -252,7 +287,7 @@ public class AddGamePane extends BorderPane {
                                     gameTitleComboBox.show();
                                 }
                             });
-                        }).start();
+                        });
                     }
             ));
 
@@ -280,40 +315,110 @@ public class AddGamePane extends BorderPane {
                 if (string == null || string.isBlank())
                     return "";
 
-                return string;
+                String[] split = string.split("\\|\\|");
+                return split[0];
             }
         });
 
         this.gameTitleComboBox.setVisibleRowCount(5);
         this.gameTitleComboBox.setPrefWidth(300);
 
-        var gameDirectoryHContainer = new HBox(gameDirectoryLabel, this.gameDirectoryTextField, this.browseButton);
-        gameDirectoryHContainer.setSpacing(10);
-        gameDirectoryHContainer.setAlignment(Pos.CENTER_LEFT);
-        gameDirectoryHContainer.setFillHeight(false);
+        var gameExecutableHContainer = new HBox(gameExecutableLabel, this.gameExecutableTextField, this.browseButton);
+        gameExecutableHContainer.setSpacing(10);
+        gameExecutableHContainer.setAlignment(Pos.CENTER_LEFT);
+        gameExecutableHContainer.setFillHeight(false);
 
-        var gameDirectoryContainer = new VBox(gameDirectoryHContainer, this.gameDirectoryErrorLabel);
+        var gameExecutableContainer = new VBox(gameExecutableHContainer, this.gameExecutableErrorLabel);
 
         this.browseButton.setOnAction(event -> {
-            DirectoryChooser chooser = new DirectoryChooser();
-            chooser.setTitle("Select Game Directory");
+            FileChooser chooser = new FileChooser();
+            chooser.setTitle("Select Game Executable");
             chooser.setInitialDirectory(Path.of(System.getProperty("user.home")).toFile());
-            File result = chooser.showDialog(getScene().getWindow());
+            chooser.getExtensionFilters().addAll(
+                    new FileChooser.ExtensionFilter("Executable Files", "*.exe"),
+                    new FileChooser.ExtensionFilter("All Files", "*.*")
+            );
+            chooser.setSelectedExtensionFilter(chooser.getExtensionFilters().get(0));
+
+            File result = chooser.showOpenDialog(getScene().getWindow());
             if (result == null)
                 return;
 
             Path path = Path.of(result.getAbsolutePath());
-            this.gameDirectoryTextField.setText(path.toAbsolutePath().toString());
+            this.gameExecutableTextField.setText(path.toAbsolutePath().toString());
         });
 
-        this.gameDirectoryErrorLabel.setVisible(false);
-        this.gameDirectoryErrorLabel.setTextFill(Color.web("#ff0000"));
+        this.gameExecutableErrorLabel.setVisible(false);
+        this.gameExecutableErrorLabel.setTextFill(Color.web("#ff0000"));
 
-        form.getChildren().addAll(serviceContainer, gameTitleContainer, gameDirectoryContainer);
+        form.getChildren().addAll(serviceContainer, gameTitleContainer, gameExecutableContainer);
         form.setSpacing(10);
         form.setAlignment(Pos.CENTER);
         form.setBackground(Utils.createBackground("#3f3f4a"));
 
         return form;
+    }
+
+    public @Nullable APIConnector.GameResult construct() {
+        if (!this.closedFromNext.get())
+            return null;
+
+        if (this.gameTitleComboBox.getValue() == null || this.gameTitleComboBox.getValue().isBlank())
+            return null;
+
+        if (this.gameExecutableTextField.getText() == null || this.gameExecutableTextField.getText().isBlank())
+            return null;
+
+        if (this.serviceComboBox.getValue() == null || this.serviceComboBox.getValue().isBlank())
+            return null;
+
+        // validate executable
+        Path executable = Path.of(this.gameExecutableTextField.getText());
+        if (Files.notExists(executable) || Files.isDirectory(executable) || !Files.isExecutable(executable))
+            return null;
+
+        // validate service
+        try {
+            GameService.valueOf(this.serviceComboBox.getValue().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
+
+        // validate game title
+        CompletableFuture<List<APIConnector.GameResult>> gameResultsFuture = APIConnector.search(this.gameTitleComboBox.getValue().split("\\|\\|")[0], true);
+        List<APIConnector.GameResult> gameResults = gameResultsFuture.join();
+
+        if (gameResults.isEmpty())
+            return null;
+
+        // find closest match
+        String gameTitle = this.gameTitleComboBox.getValue();
+        AtomicReference<APIConnector.GameResult> gameResult = new AtomicReference<>();
+        for (APIConnector.GameResult result : gameResults) {
+            if (result.getName().equalsIgnoreCase(gameTitle)) {
+                gameResult.set(result);
+                break;
+            }
+        }
+
+        if (gameResult.get() == null) {
+            // sort by levenshtein distance
+            gameResults.stream().min((a, b) -> {
+                        int aDist = Utils.levenshteinDistance(a.getName(), gameTitle);
+                        int bDist = Utils.levenshteinDistance(b.getName(), gameTitle);
+                        return Integer.compare(aDist, bDist);
+                    })
+                    .ifPresent(gameResult::set);
+        }
+
+        return gameResult.get();
+    }
+
+    public String getExecutablePath() {
+        return this.gameExecutableTextField.getText();
+    }
+
+    public GameService getService() {
+        return GameService.valueOf(this.serviceComboBox.getValue().toUpperCase(Locale.ROOT));
     }
 }

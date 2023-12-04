@@ -25,7 +25,7 @@ public class GameSidebarEntry extends HBox {
         setPadding(Utils.createInsets(5, 10, 5, 10));
         setBackground(Utils.createBackground("#2f2f3a"));
 
-        this.icon = new ImageView(ImageCache.getImage(game.getCoverImageURL()));
+        this.icon = new ImageView(ImageCache.getImage(game.getThumbCoverImageURL()));
         this.icon.setFitHeight(50);
         this.icon.setFitWidth(50);
         this.icon.setPreserveRatio(true);

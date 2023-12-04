@@ -1,5 +1,6 @@
 package domains.brighton.rg764.gamedashboard.view.home;
 
+import domains.brighton.rg764.gamedashboard.data.APIConnector;
 import domains.brighton.rg764.gamedashboard.data.Database;
 import domains.brighton.rg764.gamedashboard.data.Game;
 import domains.brighton.rg764.gamedashboard.data.GameService;
@@ -20,9 +21,7 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-
-import java.nio.file.Path;
-import java.util.UUID;
+import org.jetbrains.annotations.Nullable;
 
 public class HomeContentPane extends BorderPane {
     private final SimpleObjectProperty<ContentDisplay> contentDisplay = new SimpleObjectProperty<>(ContentDisplay.GRID);
@@ -36,14 +35,6 @@ public class HomeContentPane extends BorderPane {
     public HomeContentPane() {
         this.addGameButton = new Button("Add Game");
         this.addGameButton.setOnAction(event -> {
-            // TODO: Create modal
-//            Database.getInstance().addGame(new Game(
-//                    "Test Game " + (Database.getInstance().getGames().size() + 1),
-//                    "This is a test game",
-//                    "https://via.placeholder.com/150",
-//                    UUID.randomUUID().toString()
-//            ));
-
             var pane = new AddGamePane();
             Scene modalScene = new Scene(pane, 400, 300);
             // TODO: Add stylesheet
@@ -56,6 +47,19 @@ public class HomeContentPane extends BorderPane {
             modal.setResizable(false);
             modal.centerOnScreen();
             modal.showAndWait();
+
+            @Nullable APIConnector.GameResult gameResult = pane.construct();
+            if (gameResult != null) {
+                Database.getInstance().addGame(new Game(
+                        gameResult.getName(),
+                        gameResult.getSummary(),
+                        pane.getExecutablePath(),
+                        gameResult.getThumbCoverURL(),
+                        gameResult.getCoverURL(),
+                        gameResult.getName(),
+                        pane.getService() == GameService.STEAM
+                ));
+            }
         });
 
         // TODO: Create proper views for the content displays
@@ -68,6 +72,11 @@ public class HomeContentPane extends BorderPane {
         ((FlowPane)this.content).setHgap(15);
         ((FlowPane)this.content).setVgap(15);
         ((FlowPane)this.content).setAlignment(Pos.CENTER);
+
+        this.content.getChildren().setAll(Database.getInstance().getGames().stream()
+                .map(GridGameEntry::new)
+                .map(GridGameEntry::getTile)
+                .toArray(Tile[]::new));
 
         this.scrollPane = new ScrollPane(this.content);
         this.scrollPane.setFitToWidth(true);
@@ -102,6 +111,6 @@ public class HomeContentPane extends BorderPane {
     }
 
     public enum ContentDisplay {
-        GRID, LIST, DETAILS
+        GRID, LIST, DETAILS;
     }
 }

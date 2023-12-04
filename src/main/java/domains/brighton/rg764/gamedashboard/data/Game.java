@@ -12,7 +12,10 @@ import lombok.RequiredArgsConstructor;
 public class Game {
     private final String title;
     private final String description;
+    private final String executionCommand;
 
+    private String thumbCoverImageURL;
     private String coverImageURL;
     private String nickname;
+    private boolean isSteam;
 }

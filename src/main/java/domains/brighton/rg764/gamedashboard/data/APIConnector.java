@@ -8,11 +8,11 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
-import proto.GameResult;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 public class APIConnector {
     private static final String BASE_URL = "https://api.turtywurty.dev/";
@@ -25,85 +25,115 @@ public class APIConnector {
             .setPrettyPrinting()
             .create();
 
-    public static List<GameResult> search(String query) {
-        String searchURL = BASE_URL + "games/search?apiKey=%s&fields=name,cover&query=%s"
-                .formatted(GameDashboardApp.getAPIKey(), query);
-        String coverImageURL = BASE_URL + "games/cover?apiKey=%s&imageSize=micro&fields=url"
-                .formatted(GameDashboardApp.getAPIKey());
+    public static CompletableFuture<List<GameResult>> search(String query, boolean includeSummary) {
+        return search(query, includeSummary, true);
+    }
 
-        Request searchRequest = new Request.Builder().url(searchURL).build();
-        try (Response searchResponse = HTTP_CLIENT.newCall(searchRequest).execute()) {
-            if (!searchResponse.isSuccessful())
-                return List.of();
+    public static CompletableFuture<List<GameResult>> search(String query) {
+        return search(query, false, true);
+    }
 
-            ResponseBody searchResponseBody = searchResponse.body();
-            if (searchResponseBody == null)
-                return List.of();
+    public static CompletableFuture<List<GameResult>> search(String query, boolean includeSummary, boolean includeCover) {
+        CompletableFuture<List<GameResult>> future = new CompletableFuture<>();
 
-            String searchResponseString = searchResponseBody.string();
-            if (searchResponseString.isBlank())
-                return List.of();
+        new Thread(() -> {
+            String searchURL = (BASE_URL + "games/search?apiKey=%s&query=%s&fields=name" + (includeSummary ? ",summary" : "") + (includeCover ? ",cover" : ""))
+                    .formatted(GameDashboardApp.getAPIKey(), query);
+            String coverImageURL = BASE_URL + "games/cover?apiKey=%s&fields=url"
+                    .formatted(GameDashboardApp.getAPIKey());
 
-            JsonArray searchResponseArray = GSON.fromJson(searchResponseString, JsonArray.class);
-            if (searchResponseArray == null)
-                return List.of();
-
-            List<GameResult> gameResults = new ArrayList<>();
-            for (JsonElement jsonElement : searchResponseArray) {
-                JsonObject jsonObject = jsonElement.getAsJsonObject();
-                if (jsonObject == null)
-                    continue;
-
-                String name = jsonObject.get("name").getAsString();
-                int coverID;
-                if(jsonObject.has("cover")) {
-                    coverID = jsonObject.get("cover").getAsInt();
-                } else {
-                    gameResults.add(new GameResult(name, "https://fakeimg.pl/35x35"));
-                    continue;
+            Request searchRequest = new Request.Builder().url(searchURL).build();
+            try (Response searchResponse = HTTP_CLIENT.newCall(searchRequest).execute()) {
+                if (!searchResponse.isSuccessful()) {
+                    future.complete(List.of());
+                    return;
                 }
 
-                Request coverRequest = new Request.Builder().url(coverImageURL + "&id=" + coverID).build();
-                try (Response coverResponse = HTTP_CLIENT.newCall(coverRequest).execute()) {
-                    if (!coverResponse.isSuccessful()) {
-                        gameResults.add(new GameResult(name, "https://fakeimg.pl/35x35"));
-                        continue;
-                    }
-
-                    ResponseBody coverResponseBody = coverResponse.body();
-                    if (coverResponseBody == null) {
-                        gameResults.add(new GameResult(name, "https://fakeimg.pl/35x35"));
-                        continue;
-                    }
-
-                    String coverResponseString = coverResponseBody.string();
-                    if (coverResponseString.isBlank()) {
-                        gameResults.add(new GameResult(name, "https://fakeimg.pl/35x35"));
-                        continue;
-                    }
-
-                    JsonObject coverResponseObject = GSON.fromJson(coverResponseString, JsonObject.class);
-                    if (coverResponseObject == null) {
-                        gameResults.add(new GameResult(name, "https://fakeimg.pl/35x35"));
-                        continue;
-                    }
-
-                    String coverURL = coverResponseObject.get("url").getAsString();
-                    gameResults.add(new GameResult(name, coverURL));
+                ResponseBody searchResponseBody = searchResponse.body();
+                if (searchResponseBody == null) {
+                    future.complete(List.of());
+                    return;
                 }
+
+                String searchResponseString = searchResponseBody.string();
+                if (searchResponseString.isBlank()) {
+                    future.complete(List.of());
+                    return;
+                }
+
+                JsonArray searchResponseArray = GSON.fromJson(searchResponseString, JsonArray.class);
+                if (searchResponseArray == null) {
+                    future.complete(List.of());
+                    return;
+                }
+
+                List<GameResult> gameResults = new ArrayList<>();
+                for (JsonElement jsonElement : searchResponseArray) {
+                    JsonObject jsonObject = jsonElement.getAsJsonObject();
+                    if (jsonObject == null)
+                        continue;
+
+                    String name = jsonObject.get("name").getAsString();
+                    String summary = includeSummary ? jsonObject.has("summary") ? jsonObject.get("summary").getAsString() : null : null;
+                    if (includeCover) {
+                        int coverID;
+                        if (jsonObject.has("cover")) {
+                            coverID = jsonObject.get("cover").getAsInt();
+                        } else {
+                            gameResults.add(new GameResult(name, "https://fakeimg.pl/35x35", "https://fakeimg.pl/35x35", summary));
+                            continue;
+                        }
+
+                        Request coverRequest = new Request.Builder().url(coverImageURL + "&id=" + coverID).build();
+                        try (Response coverResponse = HTTP_CLIENT.newCall(coverRequest).execute()) {
+                            if (!coverResponse.isSuccessful()) {
+                                gameResults.add(new GameResult(name, "https://fakeimg.pl/35x35", "https://fakeimg.pl/35x35", summary));
+                                continue;
+                            }
+
+                            ResponseBody coverResponseBody = coverResponse.body();
+                            if (coverResponseBody == null) {
+                                gameResults.add(new GameResult(name, "https://fakeimg.pl/35x35", "https://fakeimg.pl/35x35", summary));
+                                continue;
+                            }
+
+                            String coverResponseString = coverResponseBody.string();
+                            if (coverResponseString.isBlank()) {
+                                gameResults.add(new GameResult(name, "https://fakeimg.pl/35x35", "https://fakeimg.pl/35x35", summary));
+                                continue;
+                            }
+
+                            JsonObject coverResponseObject = GSON.fromJson(coverResponseString, JsonObject.class);
+                            if (coverResponseObject == null) {
+                                gameResults.add(new GameResult(name, "https://fakeimg.pl/35x35", "https://fakeimg.pl/35x35", summary));
+                                continue;
+                            }
+
+                            String thumbCoverURL = coverResponseObject.get("url").getAsString();
+                            String coverURL = thumbCoverURL.replace("t_thumb", "t_cover_big");
+                            gameResults.add(new GameResult(name, thumbCoverURL, coverURL, summary));
+                        }
+                    } else {
+                        gameResults.add(new GameResult(name, null, null, summary));
+                    }
+                }
+
+                future.complete(gameResults);
+            } catch (IOException exception) {
+                exception.printStackTrace(); // TODO: Replace with logger
+                future.complete(List.of());
             }
+        }).start();
 
-            return gameResults;
-        } catch (IOException exception) {
-            exception.printStackTrace(); // TODO: Replace with logger
-            return List.of();
-        }
+        return future;
     }
 
     @Data
     @AllArgsConstructor
     public static class GameResult {
         private String name;
+        private String thumbCoverURL;
         private String coverURL;
+        private String summary;
     }
 }

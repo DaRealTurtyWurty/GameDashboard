@@ -3,6 +3,7 @@ package domains.brighton.rg764.gamedashboard;
 import domains.brighton.rg764.gamedashboard.view.GameDashboardPane;
 import io.github.cdimascio.dotenv.Dotenv;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 
@@ -23,6 +24,12 @@ public class GameDashboardApp extends Application {
         primaryStage.setMinHeight(400);
         primaryStage.setScene(scene);
         primaryStage.centerOnScreen();
+        Platform.setImplicitExit(false);
+
+        primaryStage.setOnCloseRequest(event -> {
+            event.consume();
+            Platform.exit();
+        });
         primaryStage.show();
     }
 

@@ -1,11 +1,9 @@
 package domains.brighton.rg764.gamedashboard.view.home;
 
 import domains.brighton.rg764.gamedashboard.data.Database;
-import domains.brighton.rg764.gamedashboard.data.Game;
 import domains.brighton.rg764.gamedashboard.util.Utils;
 import domains.brighton.rg764.gamedashboard.view.general.GameSidebarEntry;
 import javafx.collections.ListChangeListener;
-import javafx.collections.ObservableList;
 import javafx.geometry.Pos;
 import javafx.geometry.VPos;
 import javafx.scene.control.Label;
@@ -19,9 +17,6 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
 
-import java.util.ArrayList;
-import java.util.List;
-
 public class HomeSidebarPane extends VBox {
     private final HomeSidebarPane.Header header;
     private final Separator separator0 = new Separator();
@@ -31,12 +26,12 @@ public class HomeSidebarPane extends VBox {
 
     public HomeSidebarPane() {
         this.header = new HomeSidebarPane.Header();
-        this.header.setPrefHeight(50);
+        this.header.setPrefHeight(35);
 
         this.separator0.setPrefHeight(10);
         this.separator0.setPrefWidth(200);
         this.separator0.setValignment(VPos.CENTER);
-        this.separator0.setPadding(Utils.createInsets(10, 0, 10, 0));
+        this.separator0.setPadding(Utils.createInsets(5, 0, 10, 0));
 
         this.content = new HomeSidebarPane.Content();
         this.content.setPrefHeight(500);
@@ -89,15 +84,14 @@ public class HomeSidebarPane extends VBox {
             this.titleVBox.setAlignment(Pos.CENTER);
 
             setTop(this.titleVBox);
-            setBottom(this.logo);
+            // setBottom(this.logo);
 
             setAlignment(this.titleVBox, Pos.CENTER);
-            setAlignment(this.logo, Pos.CENTER);
+            // setAlignment(this.logo, Pos.CENTER);
         }
     }
 
     public static class Content extends BorderPane {
-        private final ObservableList<Game> games = Database.getInstance().getGames();
 
         private final Label title;
         private final ScrollPane scrollPane = new ScrollPane();
@@ -122,6 +116,11 @@ public class HomeSidebarPane extends VBox {
             this.gamesVBox = new VBox();
             this.gamesVBox.setSpacing(5);
             this.gamesVBox.setBackground(Utils.createBackground("#3f3f4a"));
+            this.gamesVBox.getChildren()
+                    .setAll(Database.getInstance().getGames()
+                            .stream()
+                            .map(GameSidebarEntry::new)
+                            .toArray(GameSidebarEntry[]::new));
 
             this.scrollPane.setContent(this.gamesVBox);
             this.scrollPane.setBackground(Utils.createBackground("#3f3f4a"));
@@ -132,11 +131,11 @@ public class HomeSidebarPane extends VBox {
             setAlignment(this.title, Pos.CENTER);
             setAlignment(this.scrollPane, Pos.CENTER);
 
-            this.games.addListener((ListChangeListener.Change<?> change) -> {
-                this.gamesVBox.getChildren()
-                        .setAll(this.games.stream()
-                                .map(GameSidebarEntry::new)
-                                .toArray(GameSidebarEntry[]::new));
+            Database.getInstance().getGames().addListener((ListChangeListener.Change<?> change) -> {
+                this.gamesVBox.getChildren().setAll(Database.getInstance().getGames()
+                        .stream()
+                        .map(GameSidebarEntry::new)
+                        .toArray(GameSidebarEntry[]::new));
             });
         }
     }
@@ -145,7 +144,7 @@ public class HomeSidebarPane extends VBox {
         private final Label totalGames;
 
         public Footer() {
-            this.totalGames = new Label("Total Games: 0");
+            this.totalGames = new Label("Total Games: " + Database.getInstance().getGames().size());
             this.totalGames.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
             this.totalGames.setTextFill(Color.web("#eee"));
             this.totalGames.setWrapText(true);
