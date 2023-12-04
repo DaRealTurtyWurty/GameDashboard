@@ -44,7 +44,7 @@ import java.util.stream.Stream;
 
 @Getter
 public class GridGameEntry {
-    private static final ScheduledExecutorService EXECUTOR_SERVICE = Executors.newSingleThreadScheduledExecutor();
+    private static ScheduledExecutorService EXECUTOR_SERVICE = Executors.newSingleThreadScheduledExecutor();
     private final Tile tile;
     private final Game game;
 
@@ -104,13 +104,23 @@ public class GridGameEntry {
                         newProcesses.removeAll(processes);
 
                         if (newProcesses.isEmpty()) {
-                            stage.show();
-                            stage.setIconified(false);
-                            tray.remove(icon);
+                            Platform.runLater(() -> {
+                                stage.show();
+                                stage.setIconified(false);
+                                tray.remove(icon);
 
-                            EXECUTOR_SERVICE.shutdown();
+                                EXECUTOR_SERVICE.shutdownNow();
+                                EXECUTOR_SERVICE.close();
+                                EXECUTOR_SERVICE = Executors.newSingleThreadScheduledExecutor();
+                                System.gc();
+                            });
+
                             return;
                         }
+
+                        System.out.println("Processes: " + newProcesses.stream()
+                                .map(process -> process.info().command().orElse(""))
+                                .collect(Collectors.joining(", ")));
 
                         // if its a steam game, check if any of the processes are steam
                         if (game.isSteam()) {
@@ -118,6 +128,7 @@ public class GridGameEntry {
                                     .filter(process -> !process.info().command().orElse("").contains("UnityCrashHandler"))
                                     .filter(process -> !process.info().command().orElse("").contains("steamwebhelper"))
                                     .filter(process -> !process.info().command().orElse("").contains("steamerrorreporter"))
+                                    .filter(process -> !process.info().command().orElse("").contains("GameOverlayUI"))
                                     .filter(process -> process.info().command().orElse("").toLowerCase(Locale.ROOT).contains("steam"))
                                     .filter(process -> {
                                         String[] pathSplit = process.info().command().orElse("").split("\\\\");
@@ -139,11 +150,17 @@ public class GridGameEntry {
                                     .findFirst().orElse(null);
 
                             if (gameProcess == null) {
-                                stage.show();
-                                stage.setIconified(false);
-                                tray.remove(icon);
+                                Platform.runLater(() -> {
+                                    stage.show();
+                                    stage.setIconified(false);
+                                    tray.remove(icon);
 
-                                EXECUTOR_SERVICE.shutdown();
+                                    EXECUTOR_SERVICE.shutdownNow();
+                                    EXECUTOR_SERVICE.close();
+                                    EXECUTOR_SERVICE = Executors.newSingleThreadScheduledExecutor();
+                                    System.gc();
+                                });
+
                                 return;
                             }
                         }
