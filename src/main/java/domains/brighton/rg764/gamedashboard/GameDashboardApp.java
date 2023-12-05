@@ -1,10 +1,12 @@
 package domains.brighton.rg764.gamedashboard;
 
+import domains.brighton.rg764.gamedashboard.preloader.GameDashboardPreloader;
 import domains.brighton.rg764.gamedashboard.view.GameDashboardPane;
 import io.github.cdimascio.dotenv.Dotenv;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.Scene;
+import javafx.scene.image.Image;
 import javafx.stage.Stage;
 
 import java.util.Optional;
@@ -20,6 +22,7 @@ public class GameDashboardApp extends Application {
         Scene scene = new Scene(new GameDashboardPane(), 800, 600);
         scene.getStylesheets().add(getClass().getResource("/css/style.css").toExternalForm());
         primaryStage.setTitle("Game Dashboard");
+        primaryStage.getIcons().add(new Image(getClass().getResource("/images/logo.png").toExternalForm()));
         primaryStage.setMinWidth(600);
         primaryStage.setMinHeight(400);
         primaryStage.setScene(scene);
@@ -30,6 +33,8 @@ public class GameDashboardApp extends Application {
             event.consume();
             Platform.exit();
         });
+
+        primaryStage.setOnShown(ignored -> GameDashboardPreloader.getInstance().setLoaded());
         primaryStage.show();
     }
 
