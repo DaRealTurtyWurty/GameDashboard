@@ -40,7 +40,6 @@ public class Database {
                 JsonObject json = new JsonObject();
                 json.add("games", new JsonArray());
                 json.addProperty("steamLocation", "");
-
                 Files.writeString(path, GSON.toJson(json));
             } catch (IOException exception) {
                 exception.printStackTrace(); // TODO: Create a logger
@@ -51,6 +50,19 @@ public class Database {
             readFromJson();
         } catch (IOException exception) {
             exception.printStackTrace(); // TODO: Create a logger
+        } catch (JsonSyntaxException exception) {
+            try {
+                Files.deleteIfExists(path);
+                Files.createDirectories(path.getParent());
+                Files.createFile(path);
+
+                JsonObject json = new JsonObject();
+                json.add("games", new JsonArray());
+                json.addProperty("steamLocation", "");
+                Files.writeString(path, GSON.toJson(json));
+            } catch (IOException ioException) {
+                ioException.printStackTrace(); // TODO: Create a logger
+            }
         }
 
         this.steamLocation.addListener((observable, oldValue, newValue) -> {
@@ -251,7 +263,7 @@ public class Database {
         return GSON;
     }
 
-    public void readFromJson() throws IOException {
+    public void readFromJson() throws IOException, JsonSyntaxException {
         String json = Files.readString(path);
         JsonObject object = GSON.fromJson(json, JsonObject.class);
         JsonArray array = object.getAsJsonArray("games");
