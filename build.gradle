@@ -6,15 +6,11 @@ plugins {
     id 'org.beryx.jlink' version '2.25.0'
 }
 
-group 'domains.brighton.rg764'
+group 'dev.turtywurty.gamedashboard'
 version '1.0-SNAPSHOT'
 
 repositories {
     mavenCentral()
-}
-
-ext {
-    junitVersion = '5.9.2'
 }
 
 sourceCompatibility = '19'
@@ -25,8 +21,8 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 application {
-    mainModule = 'domains.brighton.domains.gamedashboard'
-    mainClass = 'domains.brighton.domains.gamedashboard.Startup'
+    mainModule = 'dev.turtywurty.gamedashboard'
+    mainClass = 'dev.turtywurty.gamedashboard.Startup'
 }
 
 javafx {
@@ -49,8 +45,8 @@ dependencies {
 
     implementation('org.jetbrains:annotations:24.0.1')
 
-    testImplementation("org.junit.jupiter:junit-jupiter-api:${junitVersion}")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:${junitVersion}")
+    implementation('org.junit.jupiter:junit-jupiter-api:5.9.2')
+    implementation('org.testfx:testfx-junit5:4.0.17')
 }
 
 test {
