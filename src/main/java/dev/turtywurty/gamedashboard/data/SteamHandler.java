@@ -81,16 +81,15 @@ public class SteamHandler {
                 .orElse(null);
     }
 
-    private static String normalizeSteamName(String name) {
-        String normalizedName = name.replaceAll("[^a-zA-Z0-9 \\-_]", "")
-                .toLowerCase(Locale.ROOT);
+    public static String normalizeSteamName(String name) {
+        String normalizedName = name.toLowerCase(Locale.ROOT).replaceAll("[^a-zA-Z0-9 \\-_]", "");
         if (normalizedName.endsWith("demo"))
             normalizedName = normalizedName.substring(0, normalizedName.length() - 4);
 
         if (normalizedName.endsWith("game"))
             normalizedName = normalizedName.substring(0, normalizedName.length() - 4);
 
-        return normalizedName;
+        return normalizedName.trim();
     }
 
     private static String getExecutionCommand(JSONObject appState) {

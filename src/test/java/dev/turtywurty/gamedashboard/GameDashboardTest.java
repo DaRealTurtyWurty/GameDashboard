@@ -1,11 +1,14 @@
 package dev.turtywurty.gamedashboard;
 
-import javafx.stage.Stage;
-import org.testfx.framework.junit5.ApplicationTest;
+import dev.turtywurty.gamedashboard.data.SteamHandler;
+import org.junit.jupiter.api.Test;
 
-public class GameDashboardTest extends ApplicationTest {
-    @Override
-    public void start(Stage stage) throws Exception {
-        super.start(stage);
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+public class GameDashboardTest {
+    @Test
+    public void testNormalizeSteamName() {
+        assertEquals("test", SteamHandler.normalizeSteamName("Test Game"));
+        assertEquals("star wars squadrons", SteamHandler.normalizeSteamName("STAR WARS™: Squadrons"));
     }
 }

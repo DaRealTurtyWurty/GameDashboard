@@ -49,8 +49,9 @@ dependencies {
 
     implementation('org.jetbrains:annotations:24.1.0')
 
-    implementation('org.junit.jupiter:junit-jupiter-api:5.10.3')
-    implementation('org.testfx:testfx-junit5:4.0.17')
+    testImplementation('org.junit.jupiter:junit-jupiter-api:5.10.3')
+    testRuntimeOnly('org.junit.jupiter:junit-jupiter-engine:5.10.3')
+    testImplementation('org.testfx:testfx-junit5:4.0.17')
 }
 
 test {
