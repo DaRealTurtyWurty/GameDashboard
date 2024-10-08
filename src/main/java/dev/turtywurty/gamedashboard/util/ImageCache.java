@@ -28,6 +28,7 @@ public class ImageCache {
         try {
             String filename = scrambleURL(url);
             Path path = Path.of(CACHE_DIR.toString(), filename);
+            Files.createDirectories(path.getParent());
             if(Files.exists(path)) {
                 var image = new Image(path.toUri().toString(), background);
                 if (toCache) {

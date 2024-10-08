@@ -11,6 +11,7 @@ import okhttp3.ResponseBody;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -34,9 +35,7 @@ public class APIConnector {
     }
 
     public static CompletableFuture<List<GameResult>> search(String query, boolean includeSummary, boolean includeCover) {
-        CompletableFuture<List<GameResult>> future = new CompletableFuture<>();
-
-        new Thread(() -> {
+        return CompletableFuture.supplyAsync(() -> {
             String searchURL = (BASE_URL + "games/search?apiKey=%s&query=%s&fields=name" + (includeSummary ? ",summary" : "") + (includeCover ? ",cover" : ""))
                     .formatted(GameDashboardApp.getAPIKey(), query);
             String coverImageURL = BASE_URL + "games/cover?apiKey=%s&fields=url"
@@ -45,26 +44,26 @@ public class APIConnector {
             Request searchRequest = new Request.Builder().url(searchURL).build();
             try (Response searchResponse = HTTP_CLIENT.newCall(searchRequest).execute()) {
                 if (!searchResponse.isSuccessful()) {
-                    future.complete(List.of());
-                    return;
+                    GameDashboardApp.LOGGER.warn("Failed to search for games: {}", searchResponse.code());
+                    return Collections.emptyList();
                 }
 
                 ResponseBody searchResponseBody = searchResponse.body();
                 if (searchResponseBody == null) {
-                    future.complete(List.of());
-                    return;
+                    GameDashboardApp.LOGGER.warn("Failed to search for games: Response body is null");
+                    return Collections.emptyList();
                 }
 
                 String searchResponseString = searchResponseBody.string();
                 if (searchResponseString.isBlank()) {
-                    future.complete(List.of());
-                    return;
+                    GameDashboardApp.LOGGER.warn("Failed to search for games: Response body is blank");
+                    return Collections.emptyList();
                 }
 
                 JsonArray searchResponseArray = GSON.fromJson(searchResponseString, JsonArray.class);
                 if (searchResponseArray == null) {
-                    future.complete(List.of());
-                    return;
+                    GameDashboardApp.LOGGER.warn("Failed to search for games: Response body is not a JSON array");
+                    return Collections.emptyList();
                 }
 
                 List<GameResult> gameResults = new ArrayList<>();
@@ -118,14 +117,12 @@ public class APIConnector {
                     }
                 }
 
-                future.complete(gameResults);
+                return gameResults;
             } catch (IOException exception) {
-                exception.printStackTrace(); // TODO: Replace with logger
-                future.complete(List.of());
+                GameDashboardApp.LOGGER.error("Failed to search for games", exception);
+                return Collections.emptyList();
             }
-        }).start();
-
-        return future;
+        });
     }
 
     @Data

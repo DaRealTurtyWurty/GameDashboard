@@ -81,7 +81,7 @@ public class GridGameEntry {
                 return;
 
             try {
-                List<ProcessHandle> processes = ProcessHandle.allProcesses().collect(Collectors.toList());
+                List<ProcessHandle> processes = ProcessHandle.allProcesses().toList();
 
                 Runtime.getRuntime().exec(command);
 

@@ -1,13 +1,14 @@
 package dev.turtywurty.gamedashboard.view.home;
 
-import dev.turtywurty.gamedashboard.data.GameService;
-import dev.turtywurty.gamedashboard.view.add_game.AddGamePane;
-import dev.turtywurty.gamedashboard.view.general.GridGameEntry;
 import dev.turtywurty.gamedashboard.data.APIConnector;
 import dev.turtywurty.gamedashboard.data.Database;
 import dev.turtywurty.gamedashboard.data.Game;
+import dev.turtywurty.gamedashboard.data.GameService;
 import dev.turtywurty.gamedashboard.util.Utils;
+import dev.turtywurty.gamedashboard.view.add_game.AddGamePane;
+import dev.turtywurty.gamedashboard.view.general.GridGameEntry;
 import eu.hansolo.tilesfx.Tile;
+import eu.hansolo.tilesfx.TileBuilder;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.ListChangeListener;
@@ -20,6 +21,8 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
+import javafx.scene.paint.Color;
+import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import org.jetbrains.annotations.Nullable;
@@ -77,6 +80,17 @@ public class HomeContentPane extends BorderPane {
         this.content.getChildren().setAll(Database.getInstance().getGames().stream()
                 .map(GridGameEntry::new)
                 .map(GridGameEntry::getTile)
+                .toArray(Tile[]::new));
+        this.content.getChildren().addAll(Database.getInstance().getLoadingGames().stream()
+                .map(name -> TileBuilder.create()
+                        .skinType(Tile.SkinType.SPINNER)
+                        .prefSize(150, 200)
+                        .textAlignment(TextAlignment.CENTER)
+                        .text(name)
+                        .textSize(Tile.TextSize.BIGGER)
+                        .roundedCorners(true)
+                        .backgroundColor(Color.web("#3f3f4a"))
+                        .build())
                 .toArray(Tile[]::new));
 
         this.scrollPane = new ScrollPane(this.content);

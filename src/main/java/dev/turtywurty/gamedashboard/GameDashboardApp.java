@@ -8,6 +8,8 @@ import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 
@@ -16,6 +18,8 @@ public class GameDashboardApp extends Application {
             .directory("./env")
             .filename(".env")
             .load();
+
+    public static final Logger LOGGER = LoggerFactory.getLogger(GameDashboardApp.class);
 
     @Override
     public void start(Stage primaryStage) {

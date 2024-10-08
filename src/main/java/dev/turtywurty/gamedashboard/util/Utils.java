@@ -41,7 +41,7 @@ public class Utils {
                     distanceTable[row][column] = row;
                 }
 
-                // Find the minimum among the replace, delete, and insert operations
+                // Find the minimum among the replacement, delete, and insert operations
                 else {
                     int replace = distanceTable[row - 1][column - 1] + source.charAt(row - 1) == target.charAt(column - 1) ? 0 : 1;
                     int delete = distanceTable[row - 1][column] + 1;

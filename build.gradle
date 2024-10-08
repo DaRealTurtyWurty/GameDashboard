@@ -13,8 +13,8 @@ repositories {
     mavenCentral()
 }
 
-sourceCompatibility = '19'
-targetCompatibility = '19'
+sourceCompatibility = '21'
+targetCompatibility = '21'
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
@@ -31,21 +31,25 @@ javafx {
 }
 
 dependencies {
-    implementation('eu.hansolo:tilesfx:17.1.17') {
+    implementation ('eu.hansolo:tilesfx:17.1.17') {
         exclude(group: 'org.openjfx')
     }
 
     implementation('io.github.cdimascio:dotenv-java:3.0.0')
-    implementation('com.squareup.okhttp3:okhttp:4.11.0')
+    implementation('com.squareup.okhttp3:okhttp:4.12.0')
     implementation('com.google.code.gson:gson:2.10.1')
-    implementation('org.json:json:20230618')
+    implementation('org.json:json:20240303')
 
-    implementation('org.projectlombok:lombok:1.18.26')
-    annotationProcessor('org.projectlombok:lombok:1.18.26')
+    // add logger
+    implementation('org.slf4j:slf4j-api:2.0.12')
+    implementation('org.slf4j:slf4j-simple:2.0.13')
 
-    implementation('org.jetbrains:annotations:24.0.1')
+    implementation('org.projectlombok:lombok:1.18.34')
+    annotationProcessor('org.projectlombok:lombok:1.18.34')
 
-    implementation('org.junit.jupiter:junit-jupiter-api:5.9.2')
+    implementation('org.jetbrains:annotations:24.1.0')
+
+    implementation('org.junit.jupiter:junit-jupiter-api:5.10.3')
     implementation('org.testfx:testfx-junit5:4.0.17')
 }
 

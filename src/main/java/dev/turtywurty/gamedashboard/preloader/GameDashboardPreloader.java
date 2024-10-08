@@ -13,7 +13,6 @@ import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import lombok.Getter;
 
-
 public class GameDashboardPreloader extends Preloader {
     private Stage stage;
     private ProgressBar progressBar;

@@ -36,7 +36,25 @@ public class TopMenuBar extends MenuBar {
             steamConfigurationPane.construct();
         });
 
+//        var setupEpicGames = new MenuItem(Database.getInstance().getEpicGamesInstallLocations().isEmpty() ? "Setup Epic Games" : "Configure Epic Games");
+//        setupEpicGames.setOnAction(e -> {
+//            var epicGamesConfigurationPane = new EpicGamesConfigurationPane();
+//            var modalScene = new Scene(epicGamesConfigurationPane, 400, 300);
+//
+//            var modal = new Stage();
+//            modal.setTitle("Setup Epic Games");
+//            modal.setScene(modalScene);
+//            modal.initOwner(getScene().getWindow());
+//            modal.initModality(Modality.APPLICATION_MODAL);
+//            modal.setResizable(false);
+//            modal.centerOnScreen();
+//            modal.showAndWait();
+//
+//            epicGamesConfigurationPane.construct();
+//        });
+
         this.homeMenu.getItems().add(steamSetup);
+//        this.homeMenu.getItems().add(setupEpicGames);
 
         getMenus().addAll(this.homeMenu, this.viewMenu, this.helpMenu);
     }
