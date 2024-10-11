@@ -9,6 +9,7 @@ import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.ObservableList;
 import javafx.util.Pair;
+import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -17,6 +18,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Supplier;
 
 public class SteamHandler {
@@ -69,20 +72,18 @@ public class SteamHandler {
     }
 
     private static APIConnector.GameResult findClosestMatch(String name, List<APIConnector.GameResult> results) {
+        if (name.equals("Battlefield™️ V")) {
+            results.forEach(result -> System.out.println(result.getName()));
+        }
+
         return results.stream()
                 .filter(result -> result != null && result.getName() != null)
-                .min((o1, o2) -> {
-                    // calculate levenshtein distance
-                    int o1Distance = Utils.levenshteinDistance(o1.getName(), name);
-                    int o2Distance = Utils.levenshteinDistance(o2.getName(), name);
-
-                    return Integer.compare(o1Distance, o2Distance);
-                })
+                .min(Comparator.comparingInt(result -> Utils.levenshteinDistance(name, result.getName())))
                 .orElse(null);
     }
 
     public static String normalizeSteamName(String name) {
-        String normalizedName = name.toLowerCase(Locale.ROOT).replaceAll("[^a-zA-Z0-9 \\-_]", "");
+        String normalizedName = name.toLowerCase(Locale.ROOT).replaceAll("[^a-zA-Z0-9 \\-_:']", "");
         if (normalizedName.endsWith("demo"))
             normalizedName = normalizedName.substring(0, normalizedName.length() - 4);
 
@@ -133,6 +134,10 @@ public class SteamHandler {
             nameAndCommands.add(new Pair<>(name, executionCommand));
         }
 
+        return findGameResults(nameAndCommands);
+    }
+
+    private static @NotNull Map<String, Supplier<Game>> findGameResults(List<Pair<String, String>> nameAndCommands) {
         Map<String, Supplier<Game>> futures = new HashMap<>();
         for (Pair<String, String> nameAndCommand : nameAndCommands) {
             String name = nameAndCommand.getKey();
@@ -166,29 +171,39 @@ public class SteamHandler {
         return futures;
     }
 
-    private static void bufferCFs(List<Supplier<Game>> futures, List<Game> games, List<String> loadingGames) {
-        new Thread(() -> {
-            for (Supplier<Game> future : futures) {
-                Platform.runLater(() -> {
-                    String name = loadingGames.getFirst();
-                    Game game = future.get();
-                    if (game == null) {
-                        loadingGames.remove(name);
-                        GameDashboardApp.LOGGER.warn("Failed to load game {}", name);
-                        return;
+    private static void loadGames(List<Supplier<Game>> futures, ObservableList<Game> games, ObservableList<String> loadingGames) {
+        ExecutorService executorService = Executors.newFixedThreadPool(2);  // Pool with 2 threads
+
+        try {
+            for (Supplier<Game> futureSupplier : futures) {
+                // Submit each task to be executed concurrently
+                executorService.submit(() -> {
+                    try {
+                        Game game = futureSupplier.get(); // Fetch game on background thread
+
+                        // Once game is retrieved, update UI on the JavaFX thread
+                        Platform.runLater(() -> {
+                            String name = loadingGames.removeFirst();
+
+                            if (game == null) {
+                                GameDashboardApp.LOGGER.warn("Failed to load game {}", name);
+                            } else {
+                                games.add(game);
+                            }
+                        });
+                    } catch (Exception exception) {
+                        Platform.runLater(() -> {
+                            String name = loadingGames.removeFirst();
+                            GameDashboardApp.LOGGER.error("Error loading game {}", name, exception);
+                        });
                     }
-
-                    games.add(game);
-                    loadingGames.remove(name);
                 });
-
-                try {
-                    Thread.sleep(250);
-                } catch (InterruptedException exception) {
-                    GameDashboardApp.LOGGER.error("Failed to sleep", exception);
-                }
             }
-        }).start();
+        } catch (Exception exception) {
+            GameDashboardApp.LOGGER.error("Failed to load games", exception);
+        } finally {
+            executorService.shutdown();
+        }
     }
 
     public static boolean isSteamLocationValid(String location) {
@@ -227,7 +242,7 @@ public class SteamHandler {
         Platform.runLater(() -> loadingGames.addAll(steamGames.keySet()));
 
         IntegerProperty completed = new SimpleIntegerProperty(0);
-        bufferCFs(new ArrayList<>(steamGames.values()), games, loadingGames);
+        new Thread(() -> loadGames(new ArrayList<>(steamGames.values()), games, loadingGames)).start();
 
         completed.addListener((observable, oldValue, newValue) -> {
             if (newValue.intValue() == steamGames.size()) {

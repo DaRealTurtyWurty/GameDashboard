@@ -13,9 +13,12 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.ListChangeListener;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Spinner;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
@@ -26,6 +29,8 @@ import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.List;
 
 public class HomeContentPane extends BorderPane {
     private final SimpleObjectProperty<ContentDisplay> contentDisplay = new SimpleObjectProperty<>(ContentDisplay.GRID);
@@ -77,20 +82,30 @@ public class HomeContentPane extends BorderPane {
         ((FlowPane) this.content).setVgap(15);
         ((FlowPane) this.content).setAlignment(Pos.CENTER);
 
-        this.content.getChildren().setAll(Database.getInstance().getGames().stream()
+        // ensure that the loading games are displayed second
+        this.content.getChildren().addListener((ListChangeListener<? super Node>) c -> {
+
+        });
+
+        this.content.getChildren().addAll(Database.getInstance().getGames().stream()
                 .map(GridGameEntry::new)
                 .map(GridGameEntry::getTile)
                 .toArray(Tile[]::new));
         this.content.getChildren().addAll(Database.getInstance().getLoadingGames().stream()
-                .map(name -> TileBuilder.create()
-                        .skinType(Tile.SkinType.SPINNER)
-                        .prefSize(150, 200)
-                        .textAlignment(TextAlignment.CENTER)
-                        .text(name)
-                        .textSize(Tile.TextSize.BIGGER)
-                        .roundedCorners(true)
-                        .backgroundColor(Color.web("#3f3f4a"))
-                        .build())
+                .map(name -> {
+                    Tile tile = TileBuilder.create()
+                            .skinType(Tile.SkinType.CIRCULAR_PROGRESS)
+                            .prefSize(150, 200)
+                            .textAlignment(TextAlignment.CENTER)
+                            .text(name)
+                            .textSize(Tile.TextSize.BIGGER)
+                            .roundedCorners(true)
+                            .backgroundColor(Tile.BACKGROUND)
+                            .build();
+                    tile.setUserData(name);
+                    tile.setGraphic(new ProgressIndicator());
+                    return tile;
+                })
                 .toArray(Tile[]::new));
 
         this.scrollPane = new ScrollPane(this.content);
@@ -104,11 +119,71 @@ public class HomeContentPane extends BorderPane {
         StackPane.setAlignment(this.addGameButton, Pos.BOTTOM_RIGHT);
         StackPane.setMargin(this.addGameButton, Utils.createInsets(0, 15, 15, 0));
 
-        Database.getInstance().getGames().addListener((ListChangeListener<? super Game>) change ->
-                this.content.getChildren().setAll(Database.getInstance().getGames().stream()
-                        .map(GridGameEntry::new)
-                        .map(GridGameEntry::getTile)
-                        .toArray(Tile[]::new)));
+        Database.getInstance().getGames().addListener((ListChangeListener<? super Game>) change -> {
+            while (change.next()) {
+                if (change.wasAdded()) {
+                    List<? extends Game> addedGames = change.getAddedSubList();
+                    for (int index = 0; index < addedGames.stream()
+                            .map(GridGameEntry::new)
+                            .map(GridGameEntry::getTile)
+                            .toArray(Tile[]::new).length; index++) {
+                        // add before the first loading game
+                        int loadingGameIndex = this.content.getChildren().indexOf(this.content.getChildren().stream()
+                                .filter(node -> {
+                                    Object userData = node.getUserData();
+                                    return node instanceof Tile && userData instanceof String name && Database.getInstance().getLoadingGames().contains(name);
+                                })
+                                .findFirst()
+                                .orElse(null));
+                        if(loadingGameIndex == -1)
+                            loadingGameIndex = this.content.getChildren().size();
+
+                        this.content.getChildren().add(loadingGameIndex, new GridGameEntry(addedGames.get(index)).getTile());
+                    }
+                } else if (change.wasRemoved()) {
+                    this.content.getChildren().removeIf(node -> {
+                        Object userData = node.getUserData();
+                        if (node instanceof Tile && userData instanceof Game game) {
+                            return change.getRemoved().contains(game);
+                        }
+
+                        return false;
+                    });
+                }
+            }
+        });
+
+        Database.getInstance().getLoadingGames().addListener((ListChangeListener<? super String>) change -> {
+            while (change.next()) {
+                if (change.wasAdded()) {
+                    this.content.getChildren().addAll(change.getAddedSubList().stream()
+                            .map(name -> {
+                                Tile tile = TileBuilder.create()
+                                        .skinType(Tile.SkinType.CUSTOM)
+                                        .prefSize(150, 200)
+                                        .textAlignment(TextAlignment.CENTER)
+                                        .text(name)
+                                        .textSize(Tile.TextSize.BIGGER)
+                                        .roundedCorners(true)
+                                        .backgroundColor(Color.web("#3f3f4a"))
+                                        .build();
+                                tile.setUserData(name);
+                                tile.setGraphic(new ProgressIndicator());
+                                return tile;
+                            })
+                            .toArray(Tile[]::new));
+                } else if (change.wasRemoved()) {
+                    this.content.getChildren().removeIf(node -> {
+                        Object userData = node.getUserData();
+                        if (node instanceof Tile && userData instanceof String name) {
+                            return change.getRemoved().contains(name);
+                        }
+
+                        return false;
+                    });
+                }
+            }
+        });
 
         setCenter(this.contentContainer);
     }

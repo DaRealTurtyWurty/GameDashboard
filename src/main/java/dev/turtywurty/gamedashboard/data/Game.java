@@ -17,5 +17,9 @@ public class Game {
     private String thumbCoverImageURL;
     private String coverImageURL;
     private String nickname;
-    private boolean isSteam;
+    private int steamAppId = -1;
+
+    public boolean isSteam() {
+        return this.steamAppId != -1;
+    }
 }

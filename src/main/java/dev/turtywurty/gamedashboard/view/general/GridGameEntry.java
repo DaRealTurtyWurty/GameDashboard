@@ -60,6 +60,7 @@ public class GridGameEntry {
                 .backgroundImage(ImageCache.getImage(game.getCoverImageURL()))
                 .backgroundImageOpacity(1)
                 .build();
+        tile.setUserData(game);
 
         // try to add gradient to bottom of the image
         BufferedImage image = SwingFXUtils.fromFXImage(this.tile.getBackgroundImage(), null);
