@@ -285,13 +285,13 @@ public class GridGameEntry {
 
             Runnable enterAction = () -> {
                 Rectangle shape = new Rectangle();
-                shape.setFill(paneParent.getBackground().getFills().get(0).getFill());
+                shape.setFill(paneParent.getBackground().getFills().getFirst().getFill());
 
                 var transition = new FillTransition();
                 transition.setShape(shape);
                 transition.setDuration(Duration.millis(500));
                 transition.setDelay(Duration.millis(10));
-                transition.setFromValue((javafx.scene.paint.Color) paneParent.getBackground().getFills().get(0).getFill());
+                transition.setFromValue((javafx.scene.paint.Color) paneParent.getBackground().getFills().getFirst().getFill());
                 transition.setToValue(Utils.getAverageColor(GridGameEntry.this.tile.getBackgroundImage()));
 
                 transition.setInterpolator(new Interpolator() {
@@ -307,13 +307,13 @@ public class GridGameEntry {
 
             Runnable exitAction = () -> {
                 Rectangle shape = new Rectangle();
-                shape.setFill(paneParent.getBackground().getFills().get(0).getFill());
+                shape.setFill(paneParent.getBackground().getFills().getFirst().getFill());
 
                 var transition = new FillTransition();
                 transition.setShape(shape);
                 transition.setDuration(Duration.millis(500));
-                transition.setFromValue((javafx.scene.paint.Color) paneParent.getBackground().getFills().get(0).getFill());
-                transition.setToValue((javafx.scene.paint.Color) background.getFills().get(0).getFill());
+                transition.setFromValue((javafx.scene.paint.Color) paneParent.getBackground().getFills().getFirst().getFill());
+                transition.setToValue((javafx.scene.paint.Color) background.getFills().getFirst().getFill());
 
                 transition.setInterpolator(new Interpolator() {
                     @Override

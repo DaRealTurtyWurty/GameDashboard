@@ -8,7 +8,6 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.util.Pair;
 import lombok.Getter;
-import net.harawata.appdirs.AppDirsFactory;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
@@ -23,7 +22,6 @@ import java.util.Optional;
 public class Database {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
     private static final Database INSTANCE = new Database();
-    private static final Path APP_DATA_PATH = Path.of(AppDirsFactory.getInstance().getUserDataDir("GameDashboard", GameDashboardApp.VERSION, "turtywurty.dev"));
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static final Pair<Path, List<SteamGameCacheData>> EMPTY_CACHE = new Pair<>(Path.of(""), Collections.EMPTY_LIST);
@@ -35,7 +33,7 @@ public class Database {
     private final ObservableList<String> epicGamesInstallLocations = FXCollections.observableArrayList();
 
     private Database() {
-        if (Files.notExists(APP_DATA_PATH) || !Files.isRegularFile(APP_DATA_PATH) || !Files.isReadable(APP_DATA_PATH) || !Files.isWritable(APP_DATA_PATH)) {
+        if (Files.notExists(GameDashboardApp.APP_DATA_PATH) || !Files.isRegularFile(GameDashboardApp.APP_DATA_PATH) || !Files.isReadable(GameDashboardApp.APP_DATA_PATH) || !Files.isWritable(GameDashboardApp.APP_DATA_PATH)) {
             writeEmptyJson();
         }
 
@@ -54,13 +52,13 @@ public class Database {
     }
 
     public static Path getAppDataPath() {
-        return APP_DATA_PATH;
+        return GameDashboardApp.APP_DATA_PATH;
     }
 
     public boolean readJson() {
         String json;
         try {
-            json = Files.readString(APP_DATA_PATH);
+            json = Files.readString(GameDashboardApp.APP_DATA_PATH);
         } catch (IOException exception) {
             GameDashboardApp.LOGGER.error("Failed to read games.json", exception);
             return false;
@@ -122,7 +120,7 @@ public class Database {
         json.add("epicGamesInstallLocations", epicGamesInstallLocations);
 
         try {
-            Files.writeString(APP_DATA_PATH, GSON.toJson(json));
+            Files.writeString(GameDashboardApp.APP_DATA_PATH, GSON.toJson(json));
         } catch (IOException exception) {
             GameDashboardApp.LOGGER.error("Failed to write games.json", exception);
         }
@@ -178,15 +176,15 @@ public class Database {
 
     private static void writeEmptyJson() {
         try {
-            Files.deleteIfExists(APP_DATA_PATH);
-            Files.createDirectories(APP_DATA_PATH.getParent());
-            Files.createFile(APP_DATA_PATH);
+            Files.deleteIfExists(GameDashboardApp.APP_DATA_PATH);
+            Files.createDirectories(GameDashboardApp.APP_DATA_PATH.getParent());
+            Files.createFile(GameDashboardApp.APP_DATA_PATH);
 
             JsonObject json = new JsonObject();
             json.add("games", new JsonArray());
             json.addProperty("steamLocation", "");
             json.add("epicGamesInstallLocations", new JsonArray());
-            Files.writeString(APP_DATA_PATH, GSON.toJson(json));
+            Files.writeString(GameDashboardApp.APP_DATA_PATH, GSON.toJson(json));
         } catch (IOException exception) {
             GameDashboardApp.LOGGER.error("Failed to write games.json", exception);
         }
@@ -208,7 +206,7 @@ public class Database {
     }
 
     private static void writeSteamCache(Path steamLocation, List<SteamGameCacheData> cache) {
-        Path cachePath = APP_DATA_PATH.resolve("steam_cache.json");
+        Path cachePath = GameDashboardApp.APP_DATA_PATH.resolve("steam_cache.json");
         try {
             Files.deleteIfExists(cachePath);
             Files.createDirectories(cachePath.getParent());
@@ -237,7 +235,7 @@ public class Database {
     }
 
     private static Pair<Path, List<SteamGameCacheData>> readSteamCache() {
-        final Path cachePath = APP_DATA_PATH.resolve("steam_cache.json");
+        final Path cachePath = GameDashboardApp.APP_DATA_PATH.resolve("steam_cache.json");
         if (Files.notExists(cachePath) || !Files.isRegularFile(cachePath) || !Files.isReadable(cachePath))
             return EMPTY_CACHE;
 

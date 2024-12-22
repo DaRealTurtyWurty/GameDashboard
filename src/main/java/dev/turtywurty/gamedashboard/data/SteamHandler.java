@@ -8,7 +8,6 @@ import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.ObservableList;
-import javafx.util.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -117,7 +116,7 @@ public class SteamHandler {
 
         List<Path> appManifests = findAppManifests(libraryFolderGameMap);
 
-        List<Pair<String, String>> nameAndCommands = new ArrayList<>();
+        List<LocationDetails> nameAndCommands = new ArrayList<>();
         for (Path appManifestPath : appManifests) {
             String appManifestContent;
             try {
@@ -131,17 +130,19 @@ public class SteamHandler {
             JSONObject appState = appManifestAsJson.getJSONObject("AppState");
             String name = appState.getString("name").trim();
             String executionCommand = getExecutionCommand(appState);
-            nameAndCommands.add(new Pair<>(name, executionCommand));
+            int appId = appState.getInt("appid");
+            nameAndCommands.add(new LocationDetails(name, executionCommand, appId));
         }
 
         return findGameResults(nameAndCommands);
     }
 
-    private static @NotNull Map<String, Supplier<Game>> findGameResults(List<Pair<String, String>> nameAndCommands) {
+    private static @NotNull Map<String, Supplier<Game>> findGameResults(List<LocationDetails> nameAndCommands) {
         Map<String, Supplier<Game>> futures = new HashMap<>();
-        for (Pair<String, String> nameAndCommand : nameAndCommands) {
-            String name = nameAndCommand.getKey();
-            String executionCommand = nameAndCommand.getValue();
+        for (LocationDetails locationDetails : nameAndCommands) {
+            String name = locationDetails.name();
+            String executionCommand = locationDetails.executionCommand();
+            int appId = locationDetails.appId();
 
             futures.put(name, () -> {
                 List<APIConnector.GameResult> results = findResults(name);
@@ -163,7 +164,7 @@ public class SteamHandler {
                         gameResult.getThumbCoverURL(),
                         gameResult.getCoverURL(),
                         name,
-                        true
+                        appId
                 );
             });
         }
@@ -250,5 +251,8 @@ public class SteamHandler {
                 GameDashboardApp.LOGGER.info("Steam games loaded!");
             }
         });
+    }
+
+    public record LocationDetails(String name, String executionCommand, int appId) {
     }
 }

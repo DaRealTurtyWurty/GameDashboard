@@ -11,6 +11,7 @@ import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.file.Path;
 import java.util.Optional;
 
 public class GameDashboardApp extends Application {
@@ -46,5 +47,20 @@ public class GameDashboardApp extends Application {
     public static String getAPIKey() throws RuntimeException {
         return Optional.ofNullable(ENVIRONMENT.get("API_KEY", null))
                 .orElseThrow(() -> new RuntimeException("API key not found"));
+    }
+
+    public static final Path APP_DATA_PATH = getAppDataDirectory();
+
+    private static Path getAppDataDirectory() {
+        String os = System.getProperty("os.name").toLowerCase();
+        if (os.contains("win")) {
+            return Path.of(System.getenv("APPDATA"), "GameDashboard");
+        } else if (os.contains("mac")) {
+            return Path.of(System.getProperty("user.home"), "Library", "Application Support", "GameDashboard");
+        } else if (os.contains("nix") || os.contains("nux")) {
+            return Path.of(System.getProperty("user.home"), ".config", "GameDashboard");
+        }
+
+        return Path.of(System.getProperty("user.dir"), "GameDashboard");
     }
 }

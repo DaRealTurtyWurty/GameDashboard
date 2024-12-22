@@ -3,7 +3,6 @@ package dev.turtywurty.gamedashboard.view.home;
 import dev.turtywurty.gamedashboard.data.APIConnector;
 import dev.turtywurty.gamedashboard.data.Database;
 import dev.turtywurty.gamedashboard.data.Game;
-import dev.turtywurty.gamedashboard.data.GameService;
 import dev.turtywurty.gamedashboard.util.Utils;
 import dev.turtywurty.gamedashboard.view.add_game.AddGamePane;
 import dev.turtywurty.gamedashboard.view.general.GridGameEntry;
@@ -18,7 +17,6 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.control.Spinner;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
@@ -66,7 +64,7 @@ public class HomeContentPane extends BorderPane {
                         gameResult.getThumbCoverURL(),
                         gameResult.getCoverURL(),
                         gameResult.getName(),
-                        pane.getService() == GameService.STEAM
+                        -1 // TODO: Rewrite this because it probably won't work anyways
                 ));
             }
         });
