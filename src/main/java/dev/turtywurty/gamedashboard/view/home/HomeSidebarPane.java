@@ -1,6 +1,7 @@
 package dev.turtywurty.gamedashboard.view.home;
 
 import dev.turtywurty.gamedashboard.data.Database;
+import dev.turtywurty.gamedashboard.data.Game;
 import dev.turtywurty.gamedashboard.util.Utils;
 import dev.turtywurty.gamedashboard.view.general.GameSidebarEntry;
 import javafx.collections.ListChangeListener;
@@ -16,6 +17,8 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
+
+import java.util.Comparator;
 
 public class HomeSidebarPane extends VBox {
     private final HomeSidebarPane.Header header;
@@ -92,6 +95,8 @@ public class HomeSidebarPane extends VBox {
     }
 
     public static class Content extends BorderPane {
+        private static final Comparator<Game> GAME_TITLE_COMPARATOR =
+                Comparator.comparing(Game::getTitle, String.CASE_INSENSITIVE_ORDER);
 
         private final Label title;
         private final ScrollPane scrollPane = new ScrollPane();
@@ -119,6 +124,7 @@ public class HomeSidebarPane extends VBox {
             this.gamesVBox.getChildren()
                     .setAll(Database.getInstance().getGames()
                             .stream()
+                            .sorted(GAME_TITLE_COMPARATOR)
                             .map(GameSidebarEntry::new)
                             .toArray(GameSidebarEntry[]::new));
 
@@ -134,6 +140,7 @@ public class HomeSidebarPane extends VBox {
             Database.getInstance().getGames().addListener((ListChangeListener.Change<?> change) -> {
                 this.gamesVBox.getChildren().setAll(Database.getInstance().getGames()
                         .stream()
+                        .sorted(GAME_TITLE_COMPARATOR)
                         .map(GameSidebarEntry::new)
                         .toArray(GameSidebarEntry[]::new));
             });

@@ -1,5 +1,7 @@
 package dev.turtywurty.gamedashboard.data;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import dev.turtywurty.gamedashboard.GameDashboardApp;
 import dev.turtywurty.gamedashboard.util.Utils;
 import dev.turtywurty.gamedashboard.util.VDFtoJson;
@@ -9,9 +11,6 @@ import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.ObservableList;
 import org.jetbrains.annotations.NotNull;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -25,16 +24,17 @@ public class SteamHandler {
     public static Map<Path, List<Integer>> getLibraryFolderGameMap(Path steamPath) {
         try {
             String content = Files.readString(steamPath.resolve("steamapps").resolve("libraryfolders.vdf"));
-            JSONObject vdfAsJson = VDFtoJson.toJSONObject(content, true);
-            JSONArray libraryFolders = vdfAsJson.getJSONArray("libraryfolders");
+            JsonObject vdfAsJson = VDFtoJson.toJSONObject(content, true);
+            JsonArray libraryFolders = vdfAsJson.getAsJsonArray("libraryfolders");
 
             Map<Path, List<Integer>> libraryFolderGameMap = new HashMap<>();
             for (Object libraryFolder : libraryFolders) {
-                if (!(libraryFolder instanceof JSONObject obj))
+                if (!(libraryFolder instanceof JsonObject obj))
                     continue;
 
-                String path = obj.getString("path");
-                JSONObject apps = obj.getJSONObject("apps");
+                String path = obj.get("path").getAsString();
+                System.out.println(obj);
+                JsonObject apps = obj.get("apps").isJsonArray() ? new JsonObject() : obj.getAsJsonObject("apps");
                 for (String appId : apps.keySet()) {
                     int id;
                     try {
@@ -51,7 +51,7 @@ public class SteamHandler {
             }
 
             return libraryFolderGameMap;
-        } catch (IOException | JSONException exception) {
+        } catch (IOException exception) {
             GameDashboardApp.LOGGER.error("Failed to read libraryfolders.vdf", exception);
             return Collections.emptyMap();
         }
@@ -71,10 +71,6 @@ public class SteamHandler {
     }
 
     private static APIConnector.GameResult findClosestMatch(String name, List<APIConnector.GameResult> results) {
-        if (name.equals("Battlefield™️ V")) {
-            results.forEach(result -> System.out.println(result.getName()));
-        }
-
         return results.stream()
                 .filter(result -> result != null && result.getName() != null)
                 .min(Comparator.comparingInt(result -> Utils.levenshteinDistance(name, result.getName())))
@@ -92,8 +88,8 @@ public class SteamHandler {
         return normalizedName.trim();
     }
 
-    private static String getExecutionCommand(JSONObject appState) {
-        return appState.getString("LauncherPath") + " -applaunch " + appState.getString("appid");
+    private static String getExecutionCommand(JsonObject appState) {
+        return appState.get("LauncherPath").getAsString() + " -applaunch " + appState.get("appid").getAsString();
     }
 
     private static List<APIConnector.GameResult> findResults(String name) {
@@ -126,11 +122,11 @@ public class SteamHandler {
                 continue;
             }
 
-            JSONObject appManifestAsJson = VDFtoJson.toJSONObject(appManifestContent, true);
-            JSONObject appState = appManifestAsJson.getJSONObject("AppState");
-            String name = appState.getString("name").trim();
+            JsonObject appManifestAsJson = VDFtoJson.toJSONObject(appManifestContent, true);
+            JsonObject appState = appManifestAsJson.getAsJsonObject("AppState");
+            String name = appState.get("name").getAsString().trim();
             String executionCommand = getExecutionCommand(appState);
-            int appId = appState.getInt("appid");
+            int appId = appState.get("appid").getAsInt();
             nameAndCommands.add(new LocationDetails(name, executionCommand, appId));
         }
 
@@ -145,16 +141,36 @@ public class SteamHandler {
             int appId = locationDetails.appId();
 
             futures.put(name, () -> {
-                List<APIConnector.GameResult> results = findResults(name);
-                if (results.isEmpty()) {
-                    GameDashboardApp.LOGGER.warn("No results found for {}", name);
+                GameDashboardApp.LOGGER.info("Fetching game details for {} (AppID: {})...", name, appId);
+                APIConnector.GameResult gameResult = null;
+                try {
+                    Integer igdbId = APIConnector.getGameIdFromExternalId(
+                            APIConnector.ExternalPlatform.STEAM,
+                            String.valueOf(appId)
+                    ).join();
+                    if (igdbId != null)
+                        gameResult = APIConnector.getGameByID(igdbId, false, true).join();
+                } catch (Exception exception) {
+                    GameDashboardApp.LOGGER.error("Failed to fetch game details for {} (AppID: {})", name, appId, exception);
                     return null;
                 }
 
-                APIConnector.GameResult gameResult = findClosestMatch(name, results);
                 if (gameResult == null) {
-                    GameDashboardApp.LOGGER.warn("No closest match found for {}", name);
-                    return null;
+                    List<APIConnector.GameResult> results = findResults(name);
+                    if (results.isEmpty()) {
+                        GameDashboardApp.LOGGER.info(
+                                "Skipping {} (AppID: {}): no matching game metadata found",
+                                name,
+                                appId
+                        );
+                        return null;
+                    }
+
+                    gameResult = findClosestMatch(name, results);
+                    if (gameResult == null) {
+                        GameDashboardApp.LOGGER.warn("No closest match found for {}", name);
+                        return null;
+                    }
                 }
 
                 return new Game(
@@ -173,16 +189,14 @@ public class SteamHandler {
     }
 
     private static void loadGames(List<Supplier<Game>> futures, ObservableList<Game> games, ObservableList<String> loadingGames) {
-        ExecutorService executorService = Executors.newFixedThreadPool(2);  // Pool with 2 threads
+        ExecutorService executorService = Executors.newFixedThreadPool(2);
 
         try {
             for (Supplier<Game> futureSupplier : futures) {
-                // Submit each task to be executed concurrently
                 executorService.submit(() -> {
                     try {
-                        Game game = futureSupplier.get(); // Fetch game on background thread
+                        Game game = futureSupplier.get();
 
-                        // Once game is retrieved, update UI on the JavaFX thread
                         Platform.runLater(() -> {
                             String name = loadingGames.removeFirst();
 
@@ -232,7 +246,7 @@ public class SteamHandler {
             return;
         }
 
-        games.removeIf(Game::isSteam); // Remove any existing steam games
+        games.removeIf(Game::isSteam);
 
         Map<String, Supplier<Game>> steamGames = locateSteamGames(Path.of(location));
         if (steamGames.isEmpty()) {

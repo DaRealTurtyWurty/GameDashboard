@@ -1,30 +1,41 @@
 package dev.turtywurty.gamedashboard.data;
 
-import com.google.gson.*;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 import dev.turtywurty.gamedashboard.GameDashboardApp;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.Getter;
+import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 
 import java.io.IOException;
+import java.net.SocketTimeoutException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
-public class APIConnector {
+public final class APIConnector {
     private static final String BASE_URL = "https://api.turtywurty.dev/";
+    private static final String PLACEHOLDER_COVER_URL = "https://fakeimg.pl/35x35";
 
     private static final OkHttpClient HTTP_CLIENT = new OkHttpClient();
-
     private static final Gson GSON = new GsonBuilder()
             .disableHtmlEscaping()
             .setLenient()
             .setPrettyPrinting()
             .create();
+
+    private APIConnector() {
+    }
 
     public static CompletableFuture<List<GameResult>> search(String query, boolean includeSummary) {
         return search(query, includeSummary, true);
@@ -34,95 +45,381 @@ public class APIConnector {
         return search(query, false, true);
     }
 
-    public static CompletableFuture<List<GameResult>> search(String query, boolean includeSummary, boolean includeCover) {
+    public static CompletableFuture<List<GameResult>> search(
+            String query,
+            boolean includeSummary,
+            boolean includeCover
+    ) {
         return CompletableFuture.supplyAsync(() -> {
-            String searchURL = (BASE_URL + "games/search?apiKey=%s&query=%s&fields=name" + (includeSummary ? ",summary" : "") + (includeCover ? ",cover" : ""))
-                    .formatted(GameDashboardApp.getAPIKey(), query);
-            String coverImageURL = BASE_URL + "games/cover?apiKey=%s&fields=url"
-                    .formatted(GameDashboardApp.getAPIKey());
+            HttpUrl searchUrl = urlBuilder("games/search")
+                    .addQueryParameter("apiKey", GameDashboardApp.getAPIKey())
+                    .addQueryParameter("query", query)
+                    .addQueryParameter("fields", gameFields(includeSummary, includeCover))
+                    .build();
 
-            Request searchRequest = new Request.Builder().url(searchURL).build();
-            try (Response searchResponse = HTTP_CLIENT.newCall(searchRequest).execute()) {
-                if (!searchResponse.isSuccessful()) {
-                    GameDashboardApp.LOGGER.warn("Failed to search for games: {}", searchResponse.code());
-                    return Collections.emptyList();
-                }
+            JsonArray searchResults;
+            try {
+                searchResults = executeJson(new Request.Builder().url(searchUrl).build(), "Search for games")
+                        .getAsJsonArray();
+            } catch (APIException exception) {
+                if (exception.isNotFound())
+                    return List.of();
 
-                ResponseBody searchResponseBody = searchResponse.body();
-                if (searchResponseBody == null) {
-                    GameDashboardApp.LOGGER.warn("Failed to search for games: Response body is null");
-                    return Collections.emptyList();
-                }
-
-                String searchResponseString = searchResponseBody.string();
-                if (searchResponseString.isBlank()) {
-                    GameDashboardApp.LOGGER.warn("Failed to search for games: Response body is blank");
-                    return Collections.emptyList();
-                }
-
-                JsonArray searchResponseArray = GSON.fromJson(searchResponseString, JsonArray.class);
-                if (searchResponseArray == null) {
-                    GameDashboardApp.LOGGER.warn("Failed to search for games: Response body is not a JSON array");
-                    return Collections.emptyList();
-                }
-
-                List<GameResult> gameResults = new ArrayList<>();
-                for (JsonElement jsonElement : searchResponseArray) {
-                    JsonObject jsonObject = jsonElement.getAsJsonObject();
-                    if (jsonObject == null)
-                        continue;
-
-                    String name = jsonObject.get("name").getAsString();
-                    String summary = includeSummary ? jsonObject.has("summary") ? jsonObject.get("summary").getAsString() : null : null;
-                    if (includeCover) {
-                        int coverID;
-                        if (jsonObject.has("cover")) {
-                            coverID = jsonObject.get("cover").getAsInt();
-                        } else {
-                            gameResults.add(new GameResult(name, "https://fakeimg.pl/35x35", "https://fakeimg.pl/35x35", summary));
-                            continue;
-                        }
-
-                        Request coverRequest = new Request.Builder().url(coverImageURL + "&id=" + coverID).build();
-                        try (Response coverResponse = HTTP_CLIENT.newCall(coverRequest).execute()) {
-                            if (!coverResponse.isSuccessful()) {
-                                gameResults.add(new GameResult(name, "https://fakeimg.pl/35x35", "https://fakeimg.pl/35x35", summary));
-                                continue;
-                            }
-
-                            ResponseBody coverResponseBody = coverResponse.body();
-                            if (coverResponseBody == null) {
-                                gameResults.add(new GameResult(name, "https://fakeimg.pl/35x35", "https://fakeimg.pl/35x35", summary));
-                                continue;
-                            }
-
-                            String coverResponseString = coverResponseBody.string();
-                            if (coverResponseString.isBlank()) {
-                                gameResults.add(new GameResult(name, "https://fakeimg.pl/35x35", "https://fakeimg.pl/35x35", summary));
-                                continue;
-                            }
-
-                            JsonObject coverResponseObject = GSON.fromJson(coverResponseString, JsonObject.class);
-                            if (coverResponseObject == null) {
-                                gameResults.add(new GameResult(name, "https://fakeimg.pl/35x35", "https://fakeimg.pl/35x35", summary));
-                                continue;
-                            }
-
-                            String thumbCoverURL = coverResponseObject.get("url").getAsString();
-                            String coverURL = thumbCoverURL.replace("t_thumb", "t_cover_big");
-                            gameResults.add(new GameResult(name, thumbCoverURL, coverURL, summary));
-                        }
-                    } else {
-                        gameResults.add(new GameResult(name, null, null, summary));
-                    }
-                }
-
-                return gameResults;
-            } catch (IOException exception) {
-                GameDashboardApp.LOGGER.error("Failed to search for games", exception);
-                return Collections.emptyList();
+                throw exception;
+            } catch (IllegalStateException exception) {
+                throw invalidResponse("Search for games", "Expected a JSON array", exception);
             }
+
+            List<GameResult> gameResults = new ArrayList<>();
+            for (JsonElement resultElement : searchResults) {
+                if (!resultElement.isJsonObject())
+                    continue;
+
+                JsonObject game = resultElement.getAsJsonObject();
+                String name = getRequiredString(game, "name", "Search for games");
+                String summary = includeSummary ? getOptionalString(game, "summary") : null;
+
+                if (!includeCover) {
+                    gameResults.add(new GameResult(name, null, null, summary));
+                    continue;
+                }
+
+                Integer coverId = getOptionalInteger(game, "cover");
+                CoverUrls coverUrls = coverId == null ? null : getCoverUrls(coverId);
+                gameResults.add(createGameResult(name, summary, coverUrls));
+            }
+
+            return gameResults;
         });
+    }
+
+    public static CompletableFuture<Integer> getGameIdFromExternalId(
+            ExternalPlatform platform,
+            String externalId
+    ) {
+        Objects.requireNonNull(platform, "platform");
+        Objects.requireNonNull(externalId, "externalId");
+
+        return CompletableFuture.supplyAsync(() -> {
+            HttpUrl searchUrl = urlBuilder("games/external")
+                    .addQueryParameter("apiKey", GameDashboardApp.getAPIKey())
+                    .addQueryParameter("platform", platform.getApiName())
+                    .addQueryParameter("externalId", externalId)
+                    .build();
+
+            JsonObject game;
+            try {
+                game = executeJson(
+                        new Request.Builder().url(searchUrl).build(),
+                        "Get game ID from external ID"
+                ).getAsJsonObject();
+            } catch (APIException exception) {
+                if (exception.isNotFound())
+                    return null;
+
+                throw exception;
+            } catch (IllegalStateException exception) {
+                throw invalidResponse(
+                        "Get game ID from external ID",
+                        "Expected a JSON object",
+                        exception
+                );
+            }
+
+            return getRequiredInteger(game, "id", "Get game ID from external ID");
+        });
+    }
+
+    public static CompletableFuture<GameResult> getGameByID(
+            int id,
+            boolean includeSummary,
+            boolean includeCover
+    ) {
+        return CompletableFuture.supplyAsync(() -> {
+            HttpUrl gameUrl = urlBuilder("games")
+                    .addQueryParameter("apiKey", GameDashboardApp.getAPIKey())
+                    .addQueryParameter("id", Integer.toString(id))
+                    .addQueryParameter("fields", gameFields(includeSummary, includeCover))
+                    .build();
+
+            JsonObject game;
+            try {
+                game = executeJson(new Request.Builder().url(gameUrl).build(), "Get game by ID")
+                        .getAsJsonObject();
+            } catch (APIException exception) {
+                if (exception.isNotFound())
+                    return null;
+
+                throw exception;
+            } catch (IllegalStateException exception) {
+                throw invalidResponse("Get game by ID", "Expected a JSON object", exception);
+            }
+
+            String name = getRequiredString(game, "name", "Get game by ID");
+            String summary = includeSummary ? getOptionalString(game, "summary") : null;
+            if (!includeCover)
+                return new GameResult(name, null, null, summary);
+
+            Integer coverId = getOptionalInteger(game, "cover");
+            CoverUrls coverUrls = coverId == null ? null : getCoverUrls(coverId);
+            return createGameResult(name, summary, coverUrls);
+        });
+    }
+
+    private static CoverUrls getCoverUrls(int coverId) {
+        HttpUrl coverUrl = urlBuilder("games/cover")
+                .addQueryParameter("apiKey", GameDashboardApp.getAPIKey())
+                .addQueryParameter("fields", "url")
+                .addQueryParameter("id", Integer.toString(coverId))
+                .build();
+
+        JsonObject cover;
+        try {
+            cover = executeJson(new Request.Builder().url(coverUrl).build(), "Get game cover")
+                    .getAsJsonObject();
+        } catch (APIException exception) {
+            if (exception.isNotFound())
+                return null;
+
+            throw exception;
+        } catch (IllegalStateException exception) {
+            throw invalidResponse("Get game cover", "Expected a JSON object", exception);
+        }
+
+        String thumbnailUrl = getRequiredString(cover, "url", "Get game cover");
+        return new CoverUrls(thumbnailUrl, thumbnailUrl.replace("t_thumb", "t_cover_big"));
+    }
+
+    private static JsonElement executeJson(Request request, String operation) {
+        try (Response response = HTTP_CLIENT.newCall(request).execute()) {
+            ResponseBody responseBody = response.body();
+            String responseText = responseBody == null ? "" : responseBody.string();
+
+            if (!response.isSuccessful())
+                throw parseErrorResponse(response.code(), response.message(), responseText, operation);
+
+            if (responseText.isBlank())
+                throw invalidResponse(operation, "Response body is empty", null);
+
+            try {
+                JsonElement json = GSON.fromJson(responseText, JsonElement.class);
+                if (json == null || json.isJsonNull())
+                    throw invalidResponse(operation, "Response body contains null JSON", null);
+
+                return json;
+            } catch (JsonParseException exception) {
+                throw invalidResponse(operation, "Response body contains invalid JSON", exception);
+            }
+        } catch (SocketTimeoutException exception) {
+            throw new APIException(
+                    504,
+                    "timeout",
+                    operation + " timed out",
+                    null,
+                    exception
+            );
+        } catch (IOException exception) {
+            throw new APIException(
+                    503,
+                    "service_unavailable",
+                    operation + " could not reach the API",
+                    null,
+                    exception
+            );
+        }
+    }
+
+    private static APIException parseErrorResponse(
+            int statusCode,
+            String responseMessage,
+            String responseText,
+            String operation
+    ) {
+        String error = defaultErrorCode(statusCode);
+        String message = responseText.isBlank()
+                ? operation + " failed: " + responseMessage
+                : responseText;
+        Integer upstreamStatus = null;
+
+        if (!responseText.isBlank()) {
+            try {
+                JsonElement json = GSON.fromJson(responseText, JsonElement.class);
+                if (json != null && json.isJsonObject()) {
+                    JsonObject errorResponse = json.getAsJsonObject();
+                    error = getOptionalString(errorResponse, "error", error);
+                    message = getOptionalString(errorResponse, "message", message);
+                    upstreamStatus = getOptionalInteger(errorResponse, "upstreamStatus");
+                }
+            } catch (JsonParseException | IllegalStateException ignored) {
+                // Preserve the HTTP status and raw response when an older server returns non-JSON errors.
+            }
+        }
+
+        if (statusCode == 404) {
+            GameDashboardApp.LOGGER.debug(
+                    "{} returned no result: error={}, message={}",
+                    operation,
+                    error,
+                    message
+            );
+        } else {
+            GameDashboardApp.LOGGER.warn(
+                    "{} failed: status={}, error={}, message={}, upstreamStatus={}",
+                    operation,
+                    statusCode,
+                    error,
+                    message,
+                    upstreamStatus
+            );
+        }
+        return new APIException(statusCode, error, message, upstreamStatus);
+    }
+
+    private static APIException invalidResponse(String operation, String detail, Throwable cause) {
+        return new APIException(
+                502,
+                "invalid_response",
+                operation + " failed: " + detail,
+                null,
+                cause
+        );
+    }
+
+    private static HttpUrl.Builder urlBuilder(String path) {
+        HttpUrl baseUrl = HttpUrl.get(BASE_URL);
+        HttpUrl.Builder builder = baseUrl.newBuilder();
+        for (String pathSegment : path.split("/")) {
+            builder.addPathSegment(pathSegment);
+        }
+
+        return builder;
+    }
+
+    private static String gameFields(boolean includeSummary, boolean includeCover) {
+        List<String> fields = new ArrayList<>(List.of("name"));
+        if (includeSummary)
+            fields.add("summary");
+        if (includeCover)
+            fields.add("cover");
+        return String.join(",", fields);
+    }
+
+    private static GameResult createGameResult(String name, String summary, CoverUrls coverUrls) {
+        if (coverUrls == null)
+            return new GameResult(name, PLACEHOLDER_COVER_URL, PLACEHOLDER_COVER_URL, summary);
+
+        return new GameResult(name, coverUrls.thumbnailUrl(), coverUrls.coverUrl(), summary);
+    }
+
+    private static String getRequiredString(JsonObject object, String property, String operation) {
+        String value = getOptionalString(object, property);
+        if (value == null)
+            throw invalidResponse(operation, "Missing string property '" + property + "'", null);
+        return value;
+    }
+
+    private static int getRequiredInteger(JsonObject object, String property, String operation) {
+        Integer value = getOptionalInteger(object, property);
+        if (value == null)
+            throw invalidResponse(operation, "Missing integer property '" + property + "'", null);
+        return value;
+    }
+
+    private static String getOptionalString(JsonObject object, String property) {
+        return getOptionalString(object, property, null);
+    }
+
+    private static String getOptionalString(JsonObject object, String property, String fallback) {
+        JsonElement value = object.get(property);
+        if (value == null || value.isJsonNull() || !value.isJsonPrimitive())
+            return fallback;
+
+        try {
+            return value.getAsString();
+        } catch (UnsupportedOperationException | IllegalStateException exception) {
+            return fallback;
+        }
+    }
+
+    private static Integer getOptionalInteger(JsonObject object, String property) {
+        JsonElement value = object.get(property);
+        if (value == null || value.isJsonNull() || !value.isJsonPrimitive())
+            return null;
+
+        try {
+            return value.getAsInt();
+        } catch (NumberFormatException | UnsupportedOperationException | IllegalStateException exception) {
+            return null;
+        }
+    }
+
+    private static String defaultErrorCode(int statusCode) {
+        return switch (statusCode) {
+            case 400 -> "invalid_request";
+            case 404 -> "not_found";
+            case 502 -> "upstream_failure";
+            case 503 -> "service_unavailable";
+            case 504 -> "timeout";
+            default -> "http_error";
+        };
+    }
+
+    private record CoverUrls(String thumbnailUrl, String coverUrl) {
+    }
+
+    @Getter
+    @AllArgsConstructor
+    public enum ExternalPlatform {
+        STEAM("steam"),
+        GOG("gog"),
+        YOUTUBE("youtube"),
+        MICROSOFT("microsoft"),
+        APPLE("apple"),
+        TWITCH("twitch"),
+        ANDROID("android"),
+        AMAZON_ASIN("amazon_asin"),
+        AMAZON_LUNA("amazon_luna"),
+        AMAZON_ADG("amazon_adg"),
+        EPIC_GAME_STORE("epic_game_store"),
+        OCULUS("oculus"),
+        UTOMIK("utomik"),
+        ITCH_IO("itch_io"),
+        XBOX_MARKETPLACE("xbox_marketplace"),
+        KARTRIDGE("kartridge"),
+        PLAYSTATION_STORE_US("playstation_store_us"),
+        FOCUS_ENTERTAINMENT("focus_entertainment"),
+        XBOX_GAME_PASS_ULTIMATE_CLOUD("xbox_game_pass_ultimate_cloud"),
+        GAMEJOLT("gamejolt");
+
+        private final String apiName;
+    }
+
+    @Getter
+    public static final class APIException extends RuntimeException {
+        private final int statusCode;
+        private final String error;
+        private final Integer upstreamStatus;
+
+        public APIException(int statusCode, String error, String message, Integer upstreamStatus) {
+            this(statusCode, error, message, upstreamStatus, null);
+        }
+
+        public APIException(
+                int statusCode,
+                String error,
+                String message,
+                Integer upstreamStatus,
+                Throwable cause
+        ) {
+            super(message, cause);
+            this.statusCode = statusCode;
+            this.error = error;
+            this.upstreamStatus = upstreamStatus;
+        }
+
+        public boolean isNotFound() {
+            return this.statusCode == 404;
+        }
     }
 
     @Data

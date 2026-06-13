@@ -23,12 +23,13 @@
  */
 package dev.turtywurty.gamedashboard.util;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-import org.json.JSONTokener;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.Map;
 
 /**
  * Provides static methods to convert a file from the Valve Data Format (VDF) to
@@ -40,7 +41,10 @@ import java.util.*;
  *
  * @author nosoop < nosoop at users.noreply.github.com >
  */
-public class VDFtoJson {
+public final class VDFtoJson {
+    private VDFtoJson() {
+    }
+
     /**
      * Opening brace character. Used to signal the start of a nested KeyValue
      * set.
@@ -69,232 +73,85 @@ public class VDFtoJson {
     public static final char NEWLINE = '\n';
 
     /**
-     * Attempts to convert what is assumed to be a JSONTokener containing a
-     * String with VDF text into the JSON format.
-     *
-     * @param tokener             A JsonTokener instantiated with VDF data.
-     * @param convertArrays Whether or not to convert VDF-formatted arrays into
-     *                      JSONArrays.
-     * @return A JSON representation of the assumed-VDF data.
-     * @throws JSONException If the input data is malformed.
-     */
-    public static JSONObject toJSONObject(JSONTokener tokener, boolean convertArrays)
-            throws JSONException {
-        var object = new JSONObject();
-
-        while (tokener.more()) {
-            char firstChar = tokener.nextClean();
-
-            switch (firstChar) {
-                case QUOTE:
-                    // Case that it is a String key, expect its value next.
-                    String key = tokener.nextString(QUOTE);
-
-                    char secondChar = tokener.nextClean();
-                    if (secondChar == SLASH) {
-                        // Comment -- ignore the rest of the line.
-                        if (tokener.next() == SLASH) {
-                            tokener.skipTo(NEWLINE);
-                            secondChar = tokener.nextClean();
-                        }
-                    }
-
-                    // Case that the next thing is another String value; add.
-                    if (secondChar == QUOTE) {
-                        String value = getVDFValue(tokener, QUOTE);
-                        object.put(key, value);
-                    }
-
-                    // Or a nested KeyValue pair. Parse then add.
-                    else if (secondChar == L_BRACE) {
-                        object.put(key, toJSONObject(tokener, convertArrays));
-                    }
-
-                    // TODO: Handle other cases.
-                    else {
-                        String fmtError = "Unexpected character '%s'";
-                        throw tokener.syntaxError(String.format(fmtError, secondChar));
-                    }
-
-                    break;
-                case R_BRACE:
-                    // Case that we are done parsing this KeyValue collection.
-                    // Return it (back to the calling toJSONObject() method).
-                    return object;
-                case '\0':
-                    // Disregard null character.
-                    break;
-                case SLASH:
-                    if (tokener.next() == SLASH) {
-                        // It's a comment. Skip to the next line.
-                        tokener.skipTo(NEWLINE);
-                        break;
-                    }
-                default:
-                    String fmtError = "Unexpected character '%s'";
-                    throw tokener.syntaxError(String.format(fmtError, firstChar));
-            }
-        }
-
-        if (convertArrays) {
-            return convertVDFArrays(object);
-        }
-
-        return object;
-    }
-
-    /**
      * Attempts to convert what is assumed to be a String containing VDF text
      * into the JSON format.
      *
      * @param string        Input data, assumed to be in the Valve Data Format.
-     * @param convertArrays Whether or not to convert VDF-formatted arrays into
-     *                      JSONArrays.
+     * @param convertArrays Whether to convert VDF-formatted arrays into
+     *                      JsonArrays.
      * @return A JSON representation of the assumed-VDF data.
-     * @throws JSONException If the input data is malformed.
+     * @throws JsonParseException If the input data is malformed.
      */
-    public static JSONObject toJSONObject(String string, boolean convertArrays)
-            throws JSONException {
-        return toJSONObject(new JSONTokener(string), convertArrays);
+    public static JsonObject toJSONObject(String string, boolean convertArrays) {
+        JsonObject object = new Parser(string).parseObject(false);
+        return convertArrays ? convertVDFArrays(object) : object;
     }
 
     /**
-     * Utility method to parse a VDF value.
-     *
-     * @param x         The JSONTokener to use.
-     * @param delimiter The character that signals the end of the value.
-     * @return String extracted from the JSONTokener's current position up to the delimiter, with certain characters escaped.
-     * @throws JSONException If the next value is not a String.
-     */
-    private static String getVDFValue(JSONTokener x, final char delimiter) throws JSONException {
-        StringBuilder sb = new StringBuilder();
-
-        while (x.more()) {
-            char c = x.next();
-            if (c == BACK_SLASH) {// Unescape character.
-                // -- Allowed Escape sequences are \n, \t, \\, and \".
-                char u = x.next();
-                switch (u) {
-                    case 'n':
-                        sb.append('\n');
-                        break;
-                    case 't':
-                        sb.append('\t');
-                        break;
-                    case '\\':
-                    case '\"':
-                        sb.append(u);
-                        break;
-                    default:
-                        String fmtError =
-                                "Unexpected escape sequence \"\\%s\"";
-                        throw x.syntaxError(String.format(fmtError, u));
-                }
-            } else {// Return the string if the tokener hit the delimiter.
-                // (If it was escaped, it was handled in the previous case.)
-                if (c == delimiter) {
-                    return sb.toString();
-                } // Otherwise, append it to the string.
-                else {
-                    sb.append(c);
-                }
-            }
-        }
-
-        return sb.toString();
-    }
-
-    /**
-     * Recursively searches for JSONObjects, checking if they should be
+     * Recursively searches for JsonObjects, checking if they should be
      * formatted as arrays, then converted.
      *
-     * @param object An input JSONObject converted from VDF.
-     * @return JSONObject containing the input JSONObject with objects changed
+     * @param object An input JsonObject converted from VDF.
+     * @return JsonObject containing the input JsonObject with objects changed
      * to arrays where applicable.
-     * @throws JSONException If the input JSONObject is malformed.
      */
-    private static JSONObject convertVDFArrays(JSONObject object) throws JSONException {
-        JSONObject resp = new JSONObject();
+    private static JsonObject convertVDFArrays(JsonObject object) {
+        JsonObject response = new JsonObject();
 
-        if (object.keySet().isEmpty()) {
-            return resp;
-        }
+        for (Map.Entry<String, JsonElement> entry : object.entrySet()) {
+            String name = entry.getKey();
+            JsonElement value = entry.getValue();
 
-        for (String name : object.keySet()) {
-            JSONObject thing = object.optJSONObject(name);
+            if (value.isJsonObject()) {
+                JsonObject thing = value.getAsJsonObject();
 
-            if (thing != null) {
-                // Note:  Empty JSONObjects are also treated as arrays.
+                // Note: Empty JsonObjects are also treated as arrays.
                 if (containsVDFArray(thing)) {
-                    List<String> sortingKeys = new ArrayList<>(thing.keySet());
-
-                    // Integers-as-strings comparator.
-                    sortingKeys.sort((t, t1) -> {
-                        int i = Integer.parseInt(t), i1 = Integer.parseInt(t1);
-                        return i - i1;
-                    });
-
-                    JSONArray sortedKeys = new JSONArray(sortingKeys);
-
-                    if (!sortedKeys.isEmpty()) {
-                        JSONArray sortedObjects = thing.toJSONArray(sortedKeys);
-
-                        for (int i = 0; i < sortedObjects.length(); i++) {
-                            JSONObject arrayObject = sortedObjects.getJSONObject(i);
-
-                            // See if any values are also JSONObjects that should be arrays.
-                            sortedObjects.put(i, convertVDFArrays(arrayObject));
-                        }
-
-                        // If this JSONObject represents a non-empty array in VDF format, convert it to a JSONArray.
-                        resp.put(name, sortedObjects);
-                    } else {
-                        // If this JSONObject represents an empty array, give it an empty JSONArray.
-                        resp.put(name, new JSONArray());
+                    JsonArray array = new JsonArray();
+                    for (int index = 0; index < thing.size(); index++) {
+                        array.add(convertVDFArrays(thing.getAsJsonObject(Integer.toString(index))));
                     }
+                    response.add(name, array);
                 } else {
-                    // If this JSONObject is not a VDF array, see if its values are before adding.
-                    resp.put(name, convertVDFArrays(thing));
+                    response.add(name, convertVDFArrays(thing));
                 }
             } else {
-                // It's a plain data value. Add it in.
-                resp.put(name, object.get(name));
+                response.add(name, value);
             }
         }
 
-        // Return the converted JSONObject.
-        return resp;
+        return response;
     }
 
     /**
-     * Checks that a JSONObject converted from a VDF file is an array. If so,
-     * the only keys in the JSONObject are a continues set of integers
-     * represented by Strings starting from "0". Note that empty JSONObjects are
+     * Checks that a JsonObject converted from a VDF file is an array. If so,
+     * the only keys in the JsonObject are a continuous set of integers
+     * represented by Strings starting from "0". Note that empty JsonObjects are
      * also treated as arrays.
      *
-     * @param object The JSONObject to check for a VDF-formatted array.
-     * @return Whether or not the JSONObject is a VDF-formatted array.
+     * @param object The JsonObject to check for a VDF-formatted array.
+     * @return Whether the JsonObject is a VDF-formatted array.
      */
-    private static boolean containsVDFArray(JSONObject object) {
-        int indices = object.length();
+    private static boolean containsVDFArray(JsonObject object) {
+        int indices = object.size();
         int[] index = new int[indices];
 
         Arrays.fill(index, -1);
 
         /*
-          Fail if we encounter a non-integer, if a value isn't a JSONObject,
+          Fail if we encounter a non-integer, if a value isn't a JsonObject,
           or if the key is a number that is larger than the size of the array
           (meaning we're missing a value).
          */
-        for (String name : (Set<String>) object.keySet()) {
-            if (object.optJSONObject(name) == null) {
+        for (Map.Entry<String, JsonElement> entry : object.entrySet()) {
+            if (!entry.getValue().isJsonObject()) {
                 return false;
             }
 
             try {
-                int i = Integer.parseInt(name);
+                int i = Integer.parseInt(entry.getKey());
 
-                if (i >= indices) {
+                if (i < 0 || i >= indices) {
                     return false;
                 }
 
@@ -312,5 +169,133 @@ public class VDFtoJson {
         }
 
         return true;
+    }
+
+    private static final class Parser {
+        private final String input;
+        private int position;
+
+        private Parser(String input) {
+            this.input = input;
+        }
+
+        private JsonObject parseObject(boolean nested) {
+            JsonObject object = new JsonObject();
+
+            while (true) {
+                skipWhitespaceAndComments();
+                if (!hasNext()) {
+                    if (nested) {
+                        throw error("Unterminated object");
+                    }
+
+                    return object;
+                }
+
+                char firstChar = next();
+                if (firstChar == R_BRACE) {
+                    if (!nested) {
+                        throw error("Unexpected character '" + firstChar + "'");
+                    }
+
+                    return object;
+                }
+
+                if (firstChar == '\0') {
+                    continue;
+                }
+
+                if (firstChar != QUOTE) {
+                    throw error("Unexpected character '" + firstChar + "'");
+                }
+
+                String key = parseString();
+                skipWhitespaceAndComments();
+                if (!hasNext()) {
+                    throw error("Missing value for key \"" + key + "\"");
+                }
+
+                char valueStart = next();
+                if (valueStart == QUOTE) {
+                    object.addProperty(key, parseString());
+                } else if (valueStart == L_BRACE) {
+                    object.add(key, parseObject(true));
+                } else {
+                    throw error("Unexpected character '" + valueStart + "'");
+                }
+            }
+        }
+
+        private String parseString() {
+            StringBuilder value = new StringBuilder();
+
+            while (hasNext()) {
+                char character = next();
+                if (character == QUOTE) {
+                    return value.toString();
+                }
+
+                if (character != BACK_SLASH) {
+                    value.append(character);
+                    continue;
+                }
+
+                if (!hasNext()) {
+                    throw error("Unterminated escape sequence");
+                }
+
+                char escaped = next();
+                switch (escaped) {
+                    case 'n':
+                        value.append('\n');
+                        break;
+                    case 't':
+                        value.append('\t');
+                        break;
+                    case BACK_SLASH:
+                    case QUOTE:
+                        value.append(escaped);
+                        break;
+                    default:
+                        throw error("Unexpected escape sequence \"\\" + escaped + "\"");
+                }
+            }
+
+            throw error("Unterminated string");
+        }
+
+        private void skipWhitespaceAndComments() {
+            while (hasNext()) {
+                char character = input.charAt(position);
+                if (Character.isWhitespace(character)) {
+                    position++;
+                    continue;
+                }
+
+                if (character == SLASH
+                        && position + 1 < input.length()
+                        && input.charAt(position + 1) == SLASH) {
+                    position += 2;
+                    while (hasNext() && input.charAt(position) != NEWLINE) {
+                        position++;
+                    }
+                    continue;
+                }
+
+                return;
+            }
+        }
+
+        private boolean hasNext() {
+            return position < input.length();
+        }
+
+        private char next() {
+            return input.charAt(position++);
+        }
+
+        private JsonParseException error(String message) {
+            return new JsonParseException(message + " at character " + position);
+        }
     }
 }

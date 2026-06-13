@@ -28,9 +28,13 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Comparator;
 import java.util.List;
 
 public class HomeContentPane extends BorderPane {
+    private static final Comparator<Game> GAME_TITLE_COMPARATOR =
+            Comparator.comparing(Game::getTitle, String.CASE_INSENSITIVE_ORDER);
+
     private final SimpleObjectProperty<ContentDisplay> contentDisplay = new SimpleObjectProperty<>(ContentDisplay.GRID);
 
     private final StackPane contentContainer = new StackPane();
@@ -85,10 +89,7 @@ public class HomeContentPane extends BorderPane {
 
         });
 
-        this.content.getChildren().addAll(Database.getInstance().getGames().stream()
-                .map(GridGameEntry::new)
-                .map(GridGameEntry::getTile)
-                .toArray(Tile[]::new));
+        refreshGameTiles();
         this.content.getChildren().addAll(Database.getInstance().getLoadingGames().stream()
                 .map(name -> {
                     Tile tile = TileBuilder.create()
@@ -118,37 +119,7 @@ public class HomeContentPane extends BorderPane {
         StackPane.setMargin(this.addGameButton, Utils.createInsets(0, 15, 15, 0));
 
         Database.getInstance().getGames().addListener((ListChangeListener<? super Game>) change -> {
-            while (change.next()) {
-                if (change.wasAdded()) {
-                    List<? extends Game> addedGames = change.getAddedSubList();
-                    for (int index = 0; index < addedGames.stream()
-                            .map(GridGameEntry::new)
-                            .map(GridGameEntry::getTile)
-                            .toArray(Tile[]::new).length; index++) {
-                        // add before the first loading game
-                        int loadingGameIndex = this.content.getChildren().indexOf(this.content.getChildren().stream()
-                                .filter(node -> {
-                                    Object userData = node.getUserData();
-                                    return node instanceof Tile && userData instanceof String name && Database.getInstance().getLoadingGames().contains(name);
-                                })
-                                .findFirst()
-                                .orElse(null));
-                        if(loadingGameIndex == -1)
-                            loadingGameIndex = this.content.getChildren().size();
-
-                        this.content.getChildren().add(loadingGameIndex, new GridGameEntry(addedGames.get(index)).getTile());
-                    }
-                } else if (change.wasRemoved()) {
-                    this.content.getChildren().removeIf(node -> {
-                        Object userData = node.getUserData();
-                        if (node instanceof Tile && userData instanceof Game game) {
-                            return change.getRemoved().contains(game);
-                        }
-
-                        return false;
-                    });
-                }
-            }
+            refreshGameTiles();
         });
 
         Database.getInstance().getLoadingGames().addListener((ListChangeListener<? super String>) change -> {
@@ -184,6 +155,18 @@ public class HomeContentPane extends BorderPane {
         });
 
         setCenter(this.contentContainer);
+    }
+
+    private void refreshGameTiles() {
+        this.content.getChildren().removeIf(node -> node.getUserData() instanceof Game);
+
+        Tile[] gameTiles = Database.getInstance().getGames().stream()
+                .sorted(GAME_TITLE_COMPARATOR)
+                .map(GridGameEntry::new)
+                .map(GridGameEntry::getTile)
+                .toArray(Tile[]::new);
+
+        this.content.getChildren().addAll(0, List.of(gameTiles));
     }
 
     public ObservableValue<ContentDisplay> contentDisplayProperty() {
