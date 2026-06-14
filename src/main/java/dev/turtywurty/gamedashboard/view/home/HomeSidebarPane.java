@@ -28,6 +28,8 @@ public class HomeSidebarPane extends VBox {
     private final HomeSidebarPane.Footer footer;
 
     public HomeSidebarPane() {
+        getStyleClass().add("sidebar");
+
         this.header = new HomeSidebarPane.Header();
         this.header.setPrefHeight(35);
 
@@ -63,13 +65,17 @@ public class HomeSidebarPane extends VBox {
         private final ImageView logo;
 
         public Header() {
+            getStyleClass().add("sidebar-header");
+
             this.title = new Label("Game Dashboard");
+            this.title.getStyleClass().add("sidebar-brand");
             this.title.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
             this.title.setTextFill(Color.web("#eee"));
             this.title.setWrapText(true);
             this.title.setTextAlignment(TextAlignment.CENTER);
 
             this.subtitle = new Label("Manage your games");
+            this.subtitle.getStyleClass().add("sidebar-subtitle");
             this.subtitle.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
             this.subtitle.setTextFill(Color.web("#eee"));
             this.subtitle.setWrapText(true);
@@ -103,7 +109,10 @@ public class HomeSidebarPane extends VBox {
         private final VBox gamesVBox;
 
         public Content() {
+            getStyleClass().add("sidebar-content");
+
             this.title = new Label("Games");
+            this.title.getStyleClass().add("section-title");
             this.title.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
             this.title.setTextFill(Color.web("#eee"));
             this.title.setWrapText(true);
@@ -151,7 +160,10 @@ public class HomeSidebarPane extends VBox {
         private final Label totalGames;
 
         public Footer() {
+            getStyleClass().add("sidebar-footer");
+
             this.totalGames = new Label("Total Games: " + Database.getInstance().getGames().size());
+            this.totalGames.getStyleClass().add("sidebar-count");
             this.totalGames.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
             this.totalGames.setTextFill(Color.web("#eee"));
             this.totalGames.setWrapText(true);

@@ -1,5 +1,6 @@
 package dev.turtywurty.gamedashboard.view.general;
 
+import dev.turtywurty.gamedashboard.GameDashboardApp;
 import dev.turtywurty.gamedashboard.data.Database;
 import dev.turtywurty.gamedashboard.view.steam.SteamConfigurationPane;
 import javafx.scene.Scene;
@@ -23,6 +24,7 @@ public class TopMenuBar extends MenuBar {
         steamSetup.setOnAction(e -> {
             var steamConfigurationPane = new SteamConfigurationPane();
             var modalScene = new Scene(steamConfigurationPane, 400, 300);
+            GameDashboardApp.applyStylesheet(modalScene);
 
             var modal = new Stage();
             modal.setTitle("Setup Steam");

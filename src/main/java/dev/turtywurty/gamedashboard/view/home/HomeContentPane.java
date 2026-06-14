@@ -1,5 +1,6 @@
 package dev.turtywurty.gamedashboard.view.home;
 
+import dev.turtywurty.gamedashboard.GameDashboardApp;
 import dev.turtywurty.gamedashboard.data.APIConnector;
 import dev.turtywurty.gamedashboard.data.Database;
 import dev.turtywurty.gamedashboard.data.Game;
@@ -44,11 +45,15 @@ public class HomeContentPane extends BorderPane {
     private Pane content;
 
     public HomeContentPane() {
+        getStyleClass().add("dashboard-content");
+
         this.addGameButton = new Button("Add Game");
+        this.addGameButton.getStyleClass().addAll("primary-button", "add-game-button");
         this.addGameButton.setEffect(new DropShadow());
         this.addGameButton.setOnAction(event -> {
             var pane = new AddGamePane();
-            var modalScene = new Scene(pane, 400, 300);
+            var modalScene = new Scene(pane, 540, 500);
+            GameDashboardApp.applyStylesheet(modalScene);
 
             var modal = new Stage();
             modal.setTitle("Add Game");
@@ -76,6 +81,7 @@ public class HomeContentPane extends BorderPane {
         // TODO: Create views for LIST and DETAILS
 
         this.content = new FlowPane();
+        this.content.getStyleClass().add("game-grid");
         this.content.setPrefWidth(500);
         this.content.setPrefHeight(500);
         this.content.setBackground(Utils.createBackground("#3f3f4a"));

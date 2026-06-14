@@ -1,50 +1,455 @@
+.root {
+    -fx-font-family: "Segoe UI", "Inter", sans-serif;
+    -fx-font-size: 13px;
+
+    -gd-bg: #181820;
+    -gd-surface: #24242e;
+    -gd-surface-raised: #2f2f3a;
+    -gd-surface-hover: #383845;
+    -gd-border: #484857;
+    -gd-text: #f2f2f5;
+    -gd-text-muted: #aaaab7;
+    -gd-accent: #7c5cff;
+    -gd-accent-hover: #9278ff;
+    -gd-accent-pressed: #6847e6;
+    -gd-danger: #ff6b7a;
+
+    -fx-background-color: -gd-bg;
+    -fx-text-fill: -gd-text;
+}
+
+.label {
+    -fx-text-fill: -gd-text;
+}
+
+.app-shell,
+.dashboard-content,
+.dialog-pane,
+.add-other-game-pane {
+    -fx-background-color: -gd-bg;
+}
+
+/* Top navigation */
+
+.menu-bar {
+    -fx-background-color: #202029;
+    -fx-border-color: transparent transparent -gd-border transparent;
+    -fx-border-width: 0 0 1 0;
+    -fx-padding: 3 10 3 10;
+}
+
+.menu-bar .menu-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 6;
+    -fx-padding: 5 10 5 10;
+}
+
+.menu-bar .menu-button:hover,
+.menu-bar .menu-button:showing {
+    -fx-background-color: -gd-surface-hover;
+}
+
+.menu-bar .label,
+.context-menu .label {
+    -fx-text-fill: -gd-text;
+}
+
+.context-menu {
+    -fx-background-color: -gd-surface-raised;
+    -fx-background-radius: 8;
+    -fx-border-color: -gd-border;
+    -fx-border-radius: 8;
+    -fx-padding: 5;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.35), 18, 0.15, 0, 6);
+}
+
+.menu-item {
+    -fx-background-radius: 5;
+    -fx-padding: 7 14 7 14;
+}
+
+.menu-item:focused {
+    -fx-background-color: -gd-accent;
+}
+
+/* Sidebar */
+
+.sidebar {
+    -fx-background-color: #202029;
+    -fx-padding: 14 10 10 10;
+    -fx-spacing: 4;
+    -fx-border-color: transparent -gd-border transparent transparent;
+    -fx-border-width: 0 1 0 0;
+}
+
+.sidebar-brand {
+    -fx-font-size: 17px;
+    -fx-font-weight: 700;
+}
+
+.sidebar-subtitle {
+    -fx-font-size: 12px;
+    -fx-font-weight: 400;
+    -fx-text-fill: -gd-text-muted;
+}
+
+.section-title {
+    -fx-font-size: 14px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -gd-text;
+}
+
+.sidebar-content {
+    -fx-padding: 6 0 0 0;
+}
+
+.sidebar-footer {
+    -fx-padding: 2 0 0 0;
+}
+
+.sidebar-count {
+    -fx-font-size: 12px;
+    -fx-text-fill: -gd-text-muted;
+}
+
+.separator .line {
+    -fx-border-color: -gd-border transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
+}
+
+.game-sidebar-entry {
+    -fx-background-color: -gd-surface-raised;
+    -fx-background-radius: 8;
+    -fx-padding: 6 8 6 8;
+    -fx-cursor: hand;
+}
+
+.game-sidebar-entry:hover {
+    -fx-background-color: -gd-surface-hover;
+}
+
+/* Dashboard frame and floating action */
+
+.game-grid {
+    -fx-background-color: #3f3f4a;
+}
+
+.add-game-button {
+    -fx-font-size: 14px;
+    -fx-font-weight: 700;
+    -fx-padding: 10 18 10 18;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.38), 14, 0.15, 0, 5);
+}
+
+/* Buttons */
+
+.button {
+    -fx-background-color: -gd-surface-raised;
+    -fx-text-fill: -gd-text;
+    -fx-font-weight: 600;
+    -fx-background-radius: 7;
+    -fx-border-color: -gd-border;
+    -fx-border-radius: 7;
+    -fx-padding: 8 14 8 14;
+    -fx-cursor: hand;
+}
+
+.button:hover {
+    -fx-background-color: -gd-surface-hover;
+    -fx-border-color: #626274;
+}
+
+.button:pressed {
+    -fx-background-color: #1e1e27;
+}
+
+.primary-button {
+    -fx-background-color: -gd-accent;
+    -fx-border-color: -gd-accent;
+    -fx-text-fill: white;
+}
+
+.primary-button:hover {
+    -fx-background-color: -gd-accent-hover;
+    -fx-border-color: -gd-accent-hover;
+}
+
+.primary-button:pressed {
+    -fx-background-color: -gd-accent-pressed;
+    -fx-border-color: -gd-accent-pressed;
+}
+
+.secondary-button {
+    -fx-background-color: transparent;
+}
+
+/* Forms */
+
+.dialog-pane {
+    -fx-padding: 22;
+}
+
+.dialog-title {
+    -fx-font-size: 21px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -gd-text;
+}
+
+.dialog-header {
+    -fx-spacing: 6;
+}
+
+.dialog-description {
+    -fx-font-size: 12px;
+    -fx-text-fill: -gd-text-muted;
+    -fx-line-spacing: 2px;
+}
+
+.field-label {
+    -fx-font-size: 13px;
+    -fx-font-weight: 600;
+    -fx-text-fill: -gd-text-muted;
+}
+
+.dialog-actions {
+    -fx-background-color: transparent;
+    -fx-padding: 18 0 0 0;
+    -fx-spacing: 10;
+}
+
+.text-field,
+.text-area,
+.combo-box-base {
+    -fx-background-color: #1e1e27;
+    -fx-text-fill: -gd-text;
+    -fx-prompt-text-fill: #777785;
+    -fx-highlight-fill: -gd-accent;
+    -fx-highlight-text-fill: white;
+    -fx-background-radius: 7;
+    -fx-border-color: -gd-border;
+    -fx-border-radius: 7;
+    -fx-border-width: 1;
+    -fx-padding: 7 10 7 10;
+}
+
+.text-field:hover,
+.text-area:hover,
+.combo-box-base:hover {
+    -fx-border-color: #656577;
+}
+
+.text-field:focused,
+.text-area:focused,
+.combo-box-base:focused,
+.combo-box-base:showing {
+    -fx-border-color: -gd-accent;
+    -fx-effect: dropshadow(gaussian, rgba(124, 92, 255, 0.25), 8, 0.1, 0, 0);
+}
+
+.text-area {
+    -fx-padding: 1;
+}
+
+.text-area .content,
+.text-area .viewport {
+    -fx-background-color: #1e1e27;
+    -fx-background-radius: 6;
+}
+
+.combo-box .list-cell {
+    -fx-text-fill: -gd-text;
+    -fx-background-color: transparent;
+}
+
+.combo-box-popup .list-view {
+    -fx-background-color: -gd-surface-raised;
+    -fx-border-color: -gd-border;
+    -fx-background-radius: 7;
+    -fx-border-radius: 7;
+    -fx-padding: 4;
+}
+
+.combo-box-popup .list-cell {
+    -fx-background-color: transparent;
+    -fx-background-radius: 5;
+    -fx-padding: 8 10 8 10;
+}
+
+.combo-box-popup .list-cell:hover,
+.combo-box-popup .list-cell:filled:selected {
+    -fx-background-color: -gd-accent;
+}
+
+.combo-box-popup .list-cell:disabled {
+    -fx-opacity: 0.42;
+}
+
+.combo-box .arrow {
+    -fx-background-color: -gd-text-muted;
+}
+
+.error-label {
+    -fx-font-size: 11px;
+    -fx-text-fill: -gd-danger;
+    -fx-padding: 4 0 0 110;
+}
+
+.steam-configuration-pane {
+    -fx-padding: 24;
+}
+
+.steam-configuration-content {
+    -fx-spacing: 18;
+}
+
+.steam-location-card {
+    -fx-background-color: -gd-surface;
+    -fx-background-radius: 10;
+    -fx-border-color: -gd-border;
+    -fx-border-radius: 10;
+    -fx-padding: 16;
+    -fx-spacing: 8;
+}
+
+.steam-location-row {
+    -fx-spacing: 8;
+}
+
+.steam-location-row .text-field {
+    -fx-pref-height: 38;
+}
+
+.steam-location-row .browse-button {
+    -fx-min-width: 82;
+    -fx-pref-height: 38;
+}
+
+.steam-location-card .error-label {
+    -fx-padding: 0;
+}
+
+.steam-dialog-actions {
+    -fx-alignment: center-right;
+}
+
+.add-game-pane {
+    -fx-padding: 24;
+}
+
+.add-game-content {
+    -fx-spacing: 18;
+}
+
+.add-game-form {
+    -fx-background-color: -gd-surface;
+    -fx-background-radius: 10;
+    -fx-border-color: -gd-border;
+    -fx-border-radius: 10;
+    -fx-padding: 16;
+    -fx-spacing: 16;
+}
+
+.add-game-field {
+    -fx-spacing: 7;
+}
+
+.add-game-field > .combo-box-base,
+.add-game-field > .text-field {
+    -fx-pref-height: 38;
+    -fx-max-width: infinity;
+}
+
+.add-game-executable-row {
+    -fx-spacing: 8;
+}
+
+.add-game-executable-row .text-field {
+    -fx-pref-height: 38;
+}
+
+.add-game-executable-row .browse-button {
+    -fx-min-width: 82;
+    -fx-pref-height: 38;
+}
+
+.add-game-form .error-label {
+    -fx-padding: 0;
+}
+
+.add-game-actions {
+    -fx-alignment: center-right;
+}
+
+.image-picker {
+    -fx-background-color: -gd-surface;
+    -fx-background-radius: 10;
+    -fx-border-color: -gd-border;
+    -fx-border-radius: 10;
+    -fx-padding: 12;
+}
+
+.image-picker .image-view {
+    -fx-cursor: hand;
+}
+
+/* Scrollable surfaces */
+
+.scroll-pane,
+.scroll-pane > .viewport,
+.sidebar .scroll-pane,
+.sidebar .scroll-pane > .viewport {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.scroll-bar:horizontal,
+.scroll-bar:vertical {
+    -fx-background-color: transparent;
+}
+
 .scroll-bar:horizontal .track,
-.scroll-bar:vertical .track{
-    -fx-background-color: #3d3c3e;
-    -fx-border-color :transparent;
-    -fx-background-radius : 0.0em;
-    -fx-border-radius :2.0em;
+.scroll-bar:vertical .track {
+    -fx-background-color: #292933;
+    -fx-background-radius: 8;
+    -fx-border-color: transparent;
 }
 
-
-.scroll-bar:horizontal .increment-button ,
-.scroll-bar:horizontal .decrement-button {
-    -fx-background-color :transparent;
-    -fx-background-radius : 0.0em;
-    -fx-padding :0.0 0.0 10.0 0.0;
-
-}
-
-.scroll-bar:vertical .increment-button ,
+.scroll-bar:horizontal .increment-button,
+.scroll-bar:horizontal .decrement-button,
+.scroll-bar:vertical .increment-button,
 .scroll-bar:vertical .decrement-button {
-    -fx-background-color :transparent;
-    -fx-background-radius : 0.0em;
-    -fx-padding :0.0 10.0 0.0 0.0;
-
+    -fx-background-color: transparent;
+    -fx-padding: 0;
 }
 
 .scroll-bar .increment-arrow,
-.scroll-bar .decrement-arrow{
-    -fx-shape : " ";
-    -fx-padding :0.15em 0.0;
-}
-
-.scroll-bar:vertical .increment-arrow,
-.scroll-bar:vertical .decrement-arrow{
-    -fx-shape : " ";
-    -fx-padding :0.0 0.15em;
+.scroll-bar .decrement-arrow {
+    -fx-shape: " ";
+    -fx-padding: 0;
 }
 
 .scroll-bar:horizontal .thumb,
 .scroll-bar:vertical .thumb {
-    -fx-background-color :derive(black,90.0%);
-    -fx-background-insets : 2.0, 0.0, 0.0;
-    -fx-background-radius : 2.0em;
+    -fx-background-color: #5a5a69;
+    -fx-background-insets: 2;
+    -fx-background-radius: 8;
 }
 
 .scroll-bar:horizontal .thumb:hover,
 .scroll-bar:vertical .thumb:hover {
-    -fx-background-color :derive(#4D4C4F,10.0%);
-    -fx-background-insets : 2.0, 0.0, 0.0;
-    -fx-background-radius : 2.0em;
+    -fx-background-color: #747486;
+}
+
+.progress-indicator {
+    -fx-progress-color: -gd-accent;
+}
+
+.progress-bar > .track {
+    -fx-background-color: -gd-surface-raised;
+    -fx-background-radius: 5;
+}
+
+.progress-bar > .bar {
+    -fx-background-color: -gd-accent;
+    -fx-background-radius: 5;
 }

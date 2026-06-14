@@ -15,6 +15,8 @@ import java.nio.file.Path;
 import java.util.Optional;
 
 public class GameDashboardApp extends Application {
+    public static final String STYLESHEET = "/css/style.css";
+
     private static final Dotenv ENVIRONMENT = Dotenv.configure()
             .directory("./env")
             .filename(".env")
@@ -25,7 +27,7 @@ public class GameDashboardApp extends Application {
     @Override
     public void start(Stage primaryStage) {
         Scene scene = new Scene(new GameDashboardPane(), 800, 600);
-        scene.getStylesheets().add(getClass().getResource("/css/style.css").toExternalForm());
+        applyStylesheet(scene);
         primaryStage.setTitle("Game Dashboard");
         primaryStage.getIcons().add(new Image(getClass().getResource("/images/logo_transparent_bg.png").toExternalForm()));
         primaryStage.setMinWidth(600);
@@ -49,6 +51,10 @@ public class GameDashboardApp extends Application {
     }
 
     public static final Path APP_DATA_PATH = getAppDataDirectory();
+
+    public static void applyStylesheet(Scene scene) {
+        scene.getStylesheets().add(GameDashboardApp.class.getResource(STYLESHEET).toExternalForm());
+    }
 
     private static Path getAppDataDirectory() {
         String os = System.getProperty("os.name").toLowerCase();

@@ -1,106 +1,139 @@
 package dev.turtywurty.gamedashboard.view.steam;
 
 import dev.turtywurty.gamedashboard.data.Database;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
-import javafx.scene.layout.*;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
 
 import java.io.File;
 
 public class SteamConfigurationPane extends BorderPane {
-    private final Label title;
-
-    private final Label locationLabel;
     private final TextField locationField;
-    private final Button browseButton;
     private final Label errorLabel;
+    private boolean saved;
 
     public SteamConfigurationPane() {
-        this.title = new Label(Database.getInstance().getSteamLocation().isEmpty() ? "Setup Steam" : "Configure Steam");
-        this.title.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
+        getStyleClass().addAll("dialog-pane", "steam-configuration-pane");
 
-        this.locationLabel = new Label("Steam Location:");
-        this.locationLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
-        this.locationLabel.setPrefWidth(120);
+        var title = new Label(Database.getInstance().getSteamLocation().isEmpty()
+                ? "Set up Steam"
+                : "Configure Steam");
+        title.getStyleClass().add("dialog-title");
+
+        var description = new Label(
+                "Choose the folder where Steam is installed. Game Dashboard uses it to find your Steam library.");
+        description.getStyleClass().add("dialog-description");
+        description.setWrapText(true);
+
+        var header = new VBox(title, description);
+        header.getStyleClass().add("dialog-header");
+
+        var locationLabel = new Label("Steam installation folder");
+        locationLabel.getStyleClass().add("field-label");
 
         this.locationField = new TextField();
-        this.locationField.setPrefWidth(200);
-        this.locationField.setPromptText("C:\\Program Files\\Steam");
+        this.locationField.setPromptText("C:\\Program Files (x86)\\Steam");
+        HBox.setHgrow(this.locationField, Priority.ALWAYS);
         if (!Database.getInstance().getSteamLocation().isEmpty())
             this.locationField.setText(Database.getInstance().getSteamLocation());
 
-        this.browseButton = new Button("Browse");
-        this.browseButton.setPrefWidth(80);
+        var browseButton = new Button("Browse");
+        browseButton.getStyleClass().add("browse-button");
+        browseButton.setOnAction(event -> chooseSteamDirectory());
+
+        var locationRow = new HBox(this.locationField, browseButton);
+        locationRow.getStyleClass().add("steam-location-row");
+        locationRow.setAlignment(Pos.CENTER_LEFT);
 
         this.errorLabel = new Label();
-        this.errorLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: red;");
-        this.errorLabel.setPrefWidth(300);
-        this.errorLabel.setVisible(false);
+        this.errorLabel.getStyleClass().add("error-label");
+        this.errorLabel.setWrapText(true);
+        hideError();
 
-        this.browseButton.setOnAction(event -> {
-            var chooser = new DirectoryChooser();
-            chooser.setTitle("Select Steam Installation Directory");
-            chooser.setInitialDirectory(Database.getInstance().getSteamLocation().isEmpty() ?
-                    new File(System.getProperty("user.home")) :
-                    new File(Database.getInstance().getSteamLocation()));
+        var locationCard = new VBox(locationLabel, locationRow, this.errorLabel);
+        locationCard.getStyleClass().add("steam-location-card");
 
-            var directory = chooser.showDialog(getScene().getWindow());
-            if (directory != null && directory.exists() && directory.isDirectory()) {
-                this.errorLabel.setVisible(false);
-                this.locationField.setText(directory.getAbsolutePath());
-            } else {
-                this.errorLabel.setText("Invalid directory selected.");
-                this.errorLabel.setVisible(true);
-            }
-        });
-
-        setTop(this.title);
-        BorderPane.setAlignment(this.title, Pos.TOP_CENTER);
-
-        VBox center = new VBox();
-        HBox location = new HBox();
-        location.getChildren().addAll(this.locationLabel, this.locationField, this.browseButton);
-        center.getChildren().addAll(location, this.errorLabel);
-        setCenter(center);
-        BorderPane.setAlignment(center, Pos.CENTER);
-
-        var bottom = new HBox();
+        var content = new VBox(header, locationCard);
+        content.getStyleClass().add("steam-configuration-content");
+        VBox.setMargin(locationCard, new Insets(8, 0, 0, 0));
+        setCenter(content);
 
         var cancelButton = new Button("Cancel");
-        cancelButton.setPrefWidth(80);
-        cancelButton.setOnAction(event -> getScene().getWindow().hide());
-
-        var okButton = new Button("OK");
-        okButton.setPrefWidth(80);
-        okButton.setOnAction(event -> {
-            var steamLocation = this.locationField.getText();
-            if (steamLocation == null || steamLocation.isBlank()) {
-                this.errorLabel.setText("Steam location cannot be empty.");
-                this.errorLabel.setVisible(true);
-            } else {
-                var steam = new File(steamLocation);
-                if (steam.exists() && steam.isDirectory()) {
-                    getScene().getWindow().hide();
-                } else {
-                    this.errorLabel.setText("Invalid Steam location.");
-                    this.errorLabel.setVisible(true);
-                }
-            }
+        cancelButton.getStyleClass().add("secondary-button");
+        cancelButton.setMinWidth(86);
+        cancelButton.setOnAction(event -> {
+            this.saved = false;
+            getScene().getWindow().hide();
         });
 
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
+        var saveButton = new Button("Save");
+        saveButton.getStyleClass().add("primary-button");
+        saveButton.setMinWidth(86);
+        saveButton.setDefaultButton(true);
+        saveButton.setOnAction(event -> validateAndClose());
 
-        bottom.getChildren().addAll(cancelButton, spacer, okButton);
-        setBottom(bottom);
-        BorderPane.setAlignment(bottom, Pos.BOTTOM_CENTER);
+        var actions = new HBox(cancelButton, saveButton);
+        actions.getStyleClass().addAll("dialog-actions", "steam-dialog-actions");
+        actions.setAlignment(Pos.CENTER_RIGHT);
+        setBottom(actions);
+    }
+
+    private void chooseSteamDirectory() {
+        var chooser = new DirectoryChooser();
+        chooser.setTitle("Select Steam Installation Directory");
+
+        String currentPath = this.locationField.getText();
+        File currentLocation = currentPath == null || currentPath.isBlank() ? null : new File(currentPath);
+        chooser.setInitialDirectory(currentLocation != null && currentLocation.isDirectory()
+                ? currentLocation
+                : new File(System.getProperty("user.home")));
+
+        File directory = chooser.showDialog(getScene().getWindow());
+        if (directory == null)
+            return;
+
+        this.locationField.setText(directory.getAbsolutePath());
+        hideError();
+    }
+
+    private void validateAndClose() {
+        String steamLocation = this.locationField.getText();
+        if (steamLocation == null || steamLocation.isBlank()) {
+            showError("Steam location cannot be empty.");
+            return;
+        }
+
+        File steamDirectory = new File(steamLocation);
+        if (!steamDirectory.isDirectory()) {
+            showError("Select a valid Steam installation folder.");
+            return;
+        }
+
+        hideError();
+        this.saved = true;
+        getScene().getWindow().hide();
+    }
+
+    private void showError(String message) {
+        this.errorLabel.setText(message);
+        this.errorLabel.setManaged(true);
+        this.errorLabel.setVisible(true);
+    }
+
+    private void hideError() {
+        this.errorLabel.setManaged(false);
+        this.errorLabel.setVisible(false);
     }
 
     public void construct() {
-        String steamLocation = this.locationField.getText();
-        Database.getInstance().setSteamLocation(steamLocation);
+        if (this.saved)
+            Database.getInstance().setSteamLocation(this.locationField.getText());
     }
 }

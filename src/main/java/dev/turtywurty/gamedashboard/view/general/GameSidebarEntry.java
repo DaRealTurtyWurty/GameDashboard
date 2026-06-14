@@ -21,6 +21,7 @@ public class GameSidebarEntry extends HBox {
 
     public GameSidebarEntry(Game game) {
         this.game = game;
+        getStyleClass().add("game-sidebar-entry");
 
         setPadding(Utils.createInsets(5, 10, 5, 10));
         setBackground(Utils.createBackground("#2f2f3a"));

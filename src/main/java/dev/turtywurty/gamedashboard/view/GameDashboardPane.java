@@ -11,6 +11,8 @@ public class GameDashboardPane extends BorderPane {
     private final HomeContentPane gameContentPane;
 
     public GameDashboardPane() {
+        getStyleClass().add("app-shell");
+
         this.menuBar = new TopMenuBar();
         this.menuBar.setPrefHeight(30);
 

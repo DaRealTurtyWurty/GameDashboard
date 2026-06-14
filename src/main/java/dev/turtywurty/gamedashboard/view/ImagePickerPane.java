@@ -31,6 +31,9 @@ public class ImagePickerPane extends BorderPane {
             Path.of(System.getProperty("user.home")));
 
     public ImagePickerPane() {
+        getStyleClass().add("image-picker");
+        this.label.getStyleClass().add("section-title");
+        this.imageLabel.getStyleClass().add("field-label");
         this.label.setStyle("-fx-font-size: 1.5em; -fx-font-weight: bold;");
         this.label.setWrapText(true);
         this.label.setAlignment(Pos.CENTER);

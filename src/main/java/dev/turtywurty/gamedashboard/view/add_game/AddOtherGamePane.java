@@ -24,6 +24,10 @@ public class AddOtherGamePane extends BasicAddGamePane {
 
     public AddOtherGamePane(String gameTitle, Path gameExecutable) {
         super(gameTitle, gameExecutable);
+        getStyleClass().addAll("dialog-pane", "add-other-game-pane");
+        this.titleLabel.getStyleClass().add("dialog-title");
+        this.gameTitleLabel.getStyleClass().add("field-label");
+        this.descriptionLabel.getStyleClass().add("field-label");
 
         this.titleLabel.setStyle("-fx-font-size: 1.5em; -fx-font-weight: bold;");
         this.titleLabel.setWrapText(true);
