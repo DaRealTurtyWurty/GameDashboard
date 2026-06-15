@@ -1,7 +1,7 @@
 package dev.turtywurty.gamedashboard.view.general;
 
+import dev.turtywurty.gamedashboard.data.game.Game;
 import dev.turtywurty.gamedashboard.util.ImageCache;
-import dev.turtywurty.gamedashboard.data.Game;
 import dev.turtywurty.gamedashboard.util.Utils;
 import eu.hansolo.tilesfx.Tile;
 import eu.hansolo.tilesfx.TileBuilder;
@@ -32,7 +32,6 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -40,7 +39,7 @@ import java.util.stream.Collectors;
 
 @Getter
 public class GridGameEntry {
-    private static ScheduledExecutorService EXECUTOR_SERVICE = Executors.newSingleThreadScheduledExecutor();
+    private static ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
     private final Tile tile;
     private final Game game;
 
@@ -96,7 +95,7 @@ public class GridGameEntry {
                     TrayIcon icon = createTrayIcon(game, stage, tray);
 
                     // check if game is still running
-                    EXECUTOR_SERVICE.scheduleAtFixedRate(() -> {
+                    executorService.scheduleAtFixedRate(() -> {
                         List<ProcessHandle> newProcesses = ProcessHandle.allProcesses().collect(Collectors.toList());
                         newProcesses.removeAll(processes);
 
@@ -106,9 +105,9 @@ public class GridGameEntry {
                                 stage.setIconified(false);
                                 tray.remove(icon);
 
-                                EXECUTOR_SERVICE.shutdownNow();
-                                EXECUTOR_SERVICE.close();
-                                EXECUTOR_SERVICE = Executors.newSingleThreadScheduledExecutor();
+                                executorService.shutdownNow();
+                                executorService.close();
+                                executorService = Executors.newSingleThreadScheduledExecutor();
                                 System.gc();
                             });
 
@@ -119,48 +118,18 @@ public class GridGameEntry {
                                 .map(process -> process.info().command().orElse(""))
                                 .collect(Collectors.joining(", ")));
 
-                        // if its a steam game, check if any of the processes are steam
-                        if (game.isSteam()) {
-                            ProcessHandle gameProcess = newProcesses.stream()
-                                    .filter(process -> !process.info().command().orElse("").contains("UnityCrashHandler"))
-                                    .filter(process -> !process.info().command().orElse("").contains("steamwebhelper"))
-                                    .filter(process -> !process.info().command().orElse("").contains("steamerrorreporter"))
-                                    .filter(process -> !process.info().command().orElse("").contains("GameOverlayUI"))
-                                    .filter(process -> process.info().command().orElse("").toLowerCase(Locale.ROOT).contains("steam"))
-                                    .filter(process -> {
-                                        String[] pathSplit = process.info().command().orElse("").split("\\\\");
-                                        String executableName = pathSplit[pathSplit.length - 1].split("\\.")[0];
-                                        // check to see if its similar to the game name
-                                        boolean isExecutableSimilar = executableName.toLowerCase(Locale.ROOT).replaceAll(" ", "")
-                                                .contains(game.getTitle().toLowerCase(Locale.ROOT).replaceAll(" ", ""));
+                        game.findPossibleProcess(newProcesses).ifPresent(process -> {
+                            Platform.runLater(() -> {
+                                stage.show();
+                                stage.setIconified(false);
+                                tray.remove(icon);
 
-                                        // if its not similar then check to see if the containing folder of the executable is similar
-                                        if (!isExecutableSimilar) {
-                                            String[] folderSplit = pathSplit[pathSplit.length - 2].split("\\.");
-                                            String folderName = folderSplit[folderSplit.length - 1];
-                                            isExecutableSimilar = folderName.toLowerCase(Locale.ROOT).replaceAll(" ", "")
-                                                    .contains(game.getTitle().toLowerCase(Locale.ROOT).replaceAll(" ", ""));
-                                        }
-
-                                        return isExecutableSimilar;
-                                    })
-                                    .findFirst().orElse(null);
-
-                            if (gameProcess == null) {
-                                Platform.runLater(() -> {
-                                    stage.show();
-                                    stage.setIconified(false);
-                                    tray.remove(icon);
-
-                                    EXECUTOR_SERVICE.shutdownNow();
-                                    EXECUTOR_SERVICE.close();
-                                    EXECUTOR_SERVICE = Executors.newSingleThreadScheduledExecutor();
-                                    System.gc();
-                                });
-
-                                return;
-                            }
-                        }
+                                executorService.shutdownNow();
+                                executorService.close();
+                                executorService = Executors.newSingleThreadScheduledExecutor();
+                                System.gc();
+                            });
+                        });
                     }, 5, 1, TimeUnit.SECONDS);
                 }
             } catch (AWTException exception) {

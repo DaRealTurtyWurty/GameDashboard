@@ -3,6 +3,7 @@ package dev.turtywurty.gamedashboard.data;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import dev.turtywurty.gamedashboard.GameDashboardApp;
+import dev.turtywurty.gamedashboard.data.game.Game;
 import dev.turtywurty.gamedashboard.util.VDFtoJson;
 import javafx.application.Platform;
 import javafx.collections.ObservableList;
@@ -33,7 +34,6 @@ public class SteamHandler {
                     continue;
 
                 String path = obj.get("path").getAsString();
-                System.out.println(obj);
                 JsonObject apps = obj.get("apps").isJsonArray() ? new JsonObject() : obj.getAsJsonObject("apps");
                 for (String appId : apps.keySet()) {
                     int id;
@@ -122,7 +122,7 @@ public class SteamHandler {
 
             futures.put(name, () -> {
                 GameDashboardApp.LOGGER.info("Fetching game details for {} (AppID: {})...", name, appId);
-                APIConnector.GameResult gameResult = null;
+                APIConnector.GameResult gameResult;
                 try {
                     Integer igdbId = APIConnector.getGameIdFromExternalId(
                             APIConnector.ExternalPlatform.STEAM,
@@ -152,15 +152,10 @@ public class SteamHandler {
                     return null;
                 }
 
-                return new Game(
-                        name,
-                        gameResult.getSummary(),
-                        executionCommand,
-                        gameResult.getThumbCoverURL(),
-                        gameResult.getCoverURL(),
-                        name,
-                        appId
-                );
+                return SteamGame.builder(name, gameResult.getSummary(), executionCommand, appId)
+                        .images(gameResult.getThumbCoverURL(), gameResult.getCoverURL())
+                        .nickname(name)
+                        .build();
             });
         }
 
@@ -168,9 +163,8 @@ public class SteamHandler {
     }
 
     private static void loadGames(List<Supplier<Game>> futures, ObservableList<Game> games, ObservableList<String> loadingGames) {
-        ExecutorService executorService = Executors.newFixedThreadPool(2);
 
-        try {
+        try(ExecutorService executorService = Executors.newFixedThreadPool(2)) {
             for (Supplier<Game> futureSupplier : futures) {
                 executorService.submit(() -> {
                     try {
@@ -195,8 +189,6 @@ public class SteamHandler {
             }
         } catch (Exception exception) {
             GameDashboardApp.LOGGER.error("Failed to load games", exception);
-        } finally {
-            executorService.shutdown();
         }
     }
 
@@ -508,7 +500,7 @@ public class SteamHandler {
         if (!isSteamConfigurationValid(executable, libraryFoldersPath))
             return;
 
-        games.removeIf(Game::isSteam);
+        games.removeIf(SteamGame.class::isInstance);
 
         Map<String, Supplier<Game>> steamGames = locateSteamGames(libraryFoldersPath);
         if (steamGames.isEmpty())

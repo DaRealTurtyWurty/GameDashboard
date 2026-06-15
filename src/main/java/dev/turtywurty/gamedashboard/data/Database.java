@@ -3,8 +3,10 @@ package dev.turtywurty.gamedashboard.data;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import dev.turtywurty.gamedashboard.GameDashboardApp;
+import dev.turtywurty.gamedashboard.data.game.Game;
 import dev.turtywurty.gamedashboard.data.model.DashboardConfig;
 import dev.turtywurty.gamedashboard.data.store.ConfigStore;
+import dev.turtywurty.gamedashboard.data.store.GameStore;
 import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.FXCollections;
@@ -15,7 +17,7 @@ import org.jetbrains.annotations.NotNull;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Locale;
+import java.util.List;
 import java.util.Optional;
 
 public final class Database {
@@ -23,6 +25,7 @@ public final class Database {
     private static final Database INSTANCE = new Database();
 
     private final ConfigStore configStore;
+    private final GameStore gameStore;
     private final SteamHandler steamHandler;
 
     private final ObservableList<Game> games = FXCollections.observableArrayList();
@@ -41,6 +44,7 @@ public final class Database {
     private Database() {
         Path appDataPath = getAppDataPath();
         this.configStore = new ConfigStore(appDataPath, GSON);
+        this.gameStore = new GameStore(appDataPath, GSON);
         this.steamHandler = new SteamHandler();
 
         load();
@@ -59,6 +63,7 @@ public final class Database {
 
     public void load() {
         DashboardConfig config = this.configStore.load();
+        List<Game> games = this.gameStore.load();
         String executable = config.steamExecutable();
         String libraryFolders = config.steamLibraryFolders();
 
@@ -69,7 +74,7 @@ public final class Database {
 
         this.loadingConfig = true;
         try {
-            this.games.setAll(config.games());
+            this.games.setAll(games);
             this.steamExecutable.set(executable);
             this.steamLibraryFolders.set(libraryFolders);
             this.epicGamesInstallLocations.setAll(config.epicInstallLocations());
@@ -77,8 +82,9 @@ public final class Database {
             this.loadingConfig = false;
         }
 
-        if (!executable.equals(config.steamExecutable()) || !libraryFolders.equals(config.steamLibraryFolders()))
+        if (!executable.equals(config.steamExecutable()) || !libraryFolders.equals(config.steamLibraryFolders())) {
             save();
+        }
     }
 
     public void save() {
@@ -86,11 +92,11 @@ public final class Database {
             return;
 
         this.configStore.save(new DashboardConfig(
-                new ArrayList<>(this.games),
                 getSteamExecutable(),
                 getSteamLibraryFolders(),
                 new ArrayList<>(this.epicGamesInstallLocations)
         ));
+        this.gameStore.save(new ArrayList<>(this.games));
     }
 
     public ObservableList<Game> getGames() {
@@ -131,26 +137,6 @@ public final class Database {
 
         this.games.set(this.games.indexOf(matchingGame.get()), replacement);
         return true;
-    }
-
-    public Optional<Game> getGameBySteamAppId(int steamAppId) {
-        if (steamAppId < 0)
-            return Optional.empty();
-
-        return this.games.stream()
-                .filter(Game::isSteam)
-                .filter(game -> game.getSteamAppId() == steamAppId)
-                .findFirst();
-    }
-
-    public Optional<Game> getGameByExecutionCommand(String executionCommand) {
-        String normalizedCommand = normalizeExecutionCommand(executionCommand);
-        if (normalizedCommand.isEmpty())
-            return Optional.empty();
-
-        return this.games.stream()
-                .filter(game -> normalizeExecutionCommand(game.getExecutionCommand()).equals(normalizedCommand))
-                .findFirst();
     }
 
     public boolean containsGame(Game game) {
@@ -210,15 +196,8 @@ public final class Database {
         if (game == null)
             return Optional.empty();
 
-        if (game.isSteam())
-            return getGameBySteamAppId(game.getSteamAppId());
-
-        return getGameByExecutionCommand(game.getExecutionCommand());
-    }
-
-    private static String normalizeExecutionCommand(String executionCommand) {
-        return executionCommand == null
-                ? ""
-                : executionCommand.trim().toLowerCase(Locale.ROOT);
+        return this.games.stream()
+                .filter(game::matches)
+                .findFirst();
     }
 }

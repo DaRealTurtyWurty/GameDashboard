@@ -3,7 +3,7 @@ package dev.turtywurty.gamedashboard.view.home;
 import dev.turtywurty.gamedashboard.GameDashboardApp;
 import dev.turtywurty.gamedashboard.data.APIConnector;
 import dev.turtywurty.gamedashboard.data.Database;
-import dev.turtywurty.gamedashboard.data.Game;
+import dev.turtywurty.gamedashboard.data.game.Game;
 import dev.turtywurty.gamedashboard.util.Utils;
 import dev.turtywurty.gamedashboard.view.add_game.AddGamePane;
 import dev.turtywurty.gamedashboard.view.general.GridGameEntry;
@@ -66,15 +66,13 @@ public class HomeContentPane extends BorderPane {
 
             @Nullable APIConnector.GameResult gameResult = pane.construct();
             if (gameResult != null) {
-                Database.getInstance().addGame(new Game(
+                var game = new Game(
                         gameResult.getName(),
                         gameResult.getSummary(),
-                        pane.getExecutablePath(),
-                        gameResult.getThumbCoverURL(),
-                        gameResult.getCoverURL(),
-                        gameResult.getName(),
-                        -1 // TODO: Rewrite this because it probably won't work anyways
-                ));
+                        pane.getExecutablePath());
+                game.setThumbCoverImageURL(gameResult.getThumbCoverURL());
+                game.setCoverImageURL(gameResult.getCoverURL());
+                game.setNickname(gameResult.getName());
             }
         });
 

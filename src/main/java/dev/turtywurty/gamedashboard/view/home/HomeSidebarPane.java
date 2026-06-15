@@ -1,7 +1,7 @@
 package dev.turtywurty.gamedashboard.view.home;
 
 import dev.turtywurty.gamedashboard.data.Database;
-import dev.turtywurty.gamedashboard.data.Game;
+import dev.turtywurty.gamedashboard.data.game.Game;
 import dev.turtywurty.gamedashboard.util.Utils;
 import dev.turtywurty.gamedashboard.view.general.GameSidebarEntry;
 import javafx.collections.ListChangeListener;

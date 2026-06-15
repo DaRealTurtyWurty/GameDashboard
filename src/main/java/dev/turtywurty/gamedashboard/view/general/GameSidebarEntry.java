@@ -1,7 +1,7 @@
 package dev.turtywurty.gamedashboard.view.general;
 
 import dev.turtywurty.gamedashboard.util.ImageCache;
-import dev.turtywurty.gamedashboard.data.Game;
+import dev.turtywurty.gamedashboard.data.game.Game;
 import dev.turtywurty.gamedashboard.util.Utils;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;

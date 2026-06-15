@@ -3,7 +3,6 @@ package dev.turtywurty.gamedashboard.data.store;
 import com.google.gson.Gson;
 import com.google.gson.JsonParseException;
 import dev.turtywurty.gamedashboard.GameDashboardApp;
-import dev.turtywurty.gamedashboard.data.Game;
 import dev.turtywurty.gamedashboard.data.model.DashboardConfig;
 
 import java.io.IOException;
@@ -15,7 +14,7 @@ import java.util.Objects;
 
 public final class ConfigStore {
     private static final String FILE_NAME = "config.json";
-    private static final DashboardConfig DEFAULT_CONFIG = new DashboardConfig(List.of(), "", "", List.of());
+    private static final DashboardConfig DEFAULT_CONFIG = new DashboardConfig("", "", List.of());
 
     private final Gson gson;
     private final Path configPath;
@@ -55,11 +54,6 @@ public final class ConfigStore {
     }
 
     private static DashboardConfig normalize(DashboardConfig config) {
-        List<Game> games = config.games() == null
-                ? List.of()
-                : config.games().stream()
-                .filter(game -> game != null && game.getTitle() != null)
-                .toList();
         String configuredExecutable = config.steamExecutable() == null ? "" : config.steamExecutable().trim();
         String configuredLibraryFolders = config.steamLibraryFolders() == null
                 ? ""
@@ -74,7 +68,7 @@ public final class ConfigStore {
                 : config.epicInstallLocations().stream()
                 .filter(location -> location != null && !location.isBlank())
                 .toList();
-        return new DashboardConfig(games, steamExecutable, steamLibraryFolders, epicInstallLocations);
+        return new DashboardConfig(steamExecutable, steamLibraryFolders, epicInstallLocations);
     }
 
     private static String normalizeSteamExecutable(String configuredExecutable) {
