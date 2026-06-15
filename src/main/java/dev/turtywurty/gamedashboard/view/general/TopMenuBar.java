@@ -20,10 +20,10 @@ public class TopMenuBar extends MenuBar {
         this.viewMenu = new Menu("View");
         this.helpMenu = new Menu("Help");
 
-        var steamSetup = new MenuItem(Database.getInstance().getSteamLocation().isEmpty() ? "Setup Steam" : "Configure Steam");
+        var steamSetup = new MenuItem(Database.getInstance().isSteamConfigured() ? "Configure Steam" : "Setup Steam");
         steamSetup.setOnAction(e -> {
             var steamConfigurationPane = new SteamConfigurationPane();
-            var modalScene = new Scene(steamConfigurationPane, 400, 300);
+            var modalScene = new Scene(steamConfigurationPane, 500, 420);
             GameDashboardApp.applyStylesheet(modalScene);
 
             var modal = new Stage();

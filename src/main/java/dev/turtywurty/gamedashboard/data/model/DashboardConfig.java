@@ -7,7 +7,9 @@ import java.util.List;
 
 public record DashboardConfig(
         List<Game> games,
-        String steamLocation,
+        @SerializedName(value = "steamExecutable", alternate = "steamLocation")
+        String steamExecutable,
+        String steamLibraryFolders,
         @SerializedName(value = "epicGamesInstallLocations", alternate = "epicInstallLocations")
         List<String> epicInstallLocations
 ) {

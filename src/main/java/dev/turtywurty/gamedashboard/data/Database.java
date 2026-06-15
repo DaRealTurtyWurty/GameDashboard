@@ -4,10 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import dev.turtywurty.gamedashboard.GameDashboardApp;
 import dev.turtywurty.gamedashboard.data.model.DashboardConfig;
-import dev.turtywurty.gamedashboard.data.model.SteamCache;
-import dev.turtywurty.gamedashboard.data.model.SteamGameCacheEntry;
 import dev.turtywurty.gamedashboard.data.store.ConfigStore;
-import dev.turtywurty.gamedashboard.data.store.SteamCacheStore;
 import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.FXCollections;
@@ -15,9 +12,9 @@ import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import org.jetbrains.annotations.NotNull;
 
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -26,7 +23,6 @@ public final class Database {
     private static final Database INSTANCE = new Database();
 
     private final ConfigStore configStore;
-    private final SteamCacheStore steamCacheStore;
     private final SteamHandler steamHandler;
 
     private final ObservableList<Game> games = FXCollections.observableArrayList();
@@ -37,37 +33,20 @@ public final class Database {
     private final ObservableList<String> epicGamesInstallLocations = FXCollections.observableArrayList();
     private final ObservableList<String> readOnlyEpicGamesInstallLocations =
             FXCollections.unmodifiableObservableList(this.epicGamesInstallLocations);
-    private final ReadOnlyStringWrapper steamLocation = new ReadOnlyStringWrapper("");
+    private final ReadOnlyStringWrapper steamExecutable = new ReadOnlyStringWrapper("");
+    private final ReadOnlyStringWrapper steamLibraryFolders = new ReadOnlyStringWrapper("");
 
     private boolean loadingConfig;
 
     private Database() {
         Path appDataPath = getAppDataPath();
         this.configStore = new ConfigStore(appDataPath, GSON);
-        this.steamCacheStore = new SteamCacheStore(appDataPath, GSON);
         this.steamHandler = new SteamHandler();
 
         load();
 
         this.games.addListener((ListChangeListener<Game>) change -> save());
         this.epicGamesInstallLocations.addListener((ListChangeListener<String>) change -> save());
-        this.steamLocation.addListener((observable, oldValue, newValue) -> {
-            if (this.loadingConfig)
-                return;
-
-            if (newValue == null) {
-                this.steamLocation.set("");
-                return;
-            }
-
-            this.steamHandler.onSteamLocationUpdated(
-                    newValue,
-                    this.games,
-                    this.loadingGames,
-                    this.steamLocation
-            );
-            save();
-        });
     }
 
     public static Database getInstance() {
@@ -80,16 +59,26 @@ public final class Database {
 
     public void load() {
         DashboardConfig config = this.configStore.load();
+        String executable = config.steamExecutable();
+        String libraryFolders = config.steamLibraryFolders();
+
+        if (executable.isEmpty())
+            executable = SteamHandler.discoverSteamLocation().map(Path::toString).orElse("");
+        if (libraryFolders.isEmpty())
+            libraryFolders = SteamHandler.discoverSteamLibraryFoldersLocation().map(Path::toString).orElse("");
 
         this.loadingConfig = true;
         try {
             this.games.setAll(config.games());
-            this.steamLocation.set(config.steamLocation());
+            this.steamExecutable.set(executable);
+            this.steamLibraryFolders.set(libraryFolders);
             this.epicGamesInstallLocations.setAll(config.epicInstallLocations());
-            restoreSteamCache(config.steamLocation());
         } finally {
             this.loadingConfig = false;
         }
+
+        if (!executable.equals(config.steamExecutable()) || !libraryFolders.equals(config.steamLibraryFolders()))
+            save();
     }
 
     public void save() {
@@ -98,12 +87,10 @@ public final class Database {
 
         this.configStore.save(new DashboardConfig(
                 new ArrayList<>(this.games),
-                getSteamLocation(),
+                getSteamExecutable(),
+                getSteamLibraryFolders(),
                 new ArrayList<>(this.epicGamesInstallLocations)
         ));
-
-        if (!getSteamLocation().isEmpty())
-            this.steamCacheStore.save(constructSteamCache());
     }
 
     public ObservableList<Game> getGames() {
@@ -170,58 +157,53 @@ public final class Database {
         return findMatchingGame(game).isPresent();
     }
 
-    public void setSteamLocation(String steamLocation) {
-        this.steamLocation.set(steamLocation == null ? "" : steamLocation);
+    public boolean setSteamConfiguration(String executable, String libraryFolders) {
+        if (executable == null || libraryFolders == null)
+            return false;
+
+        Path executablePath;
+        Path libraryFoldersPath;
+        try {
+            executablePath = Path.of(executable);
+            libraryFoldersPath = Path.of(libraryFolders);
+        } catch (InvalidPathException exception) {
+            return false;
+        }
+        if (!SteamHandler.isSteamConfigurationValid(executablePath, libraryFoldersPath))
+            return false;
+
+        this.steamExecutable.set(executablePath.toString());
+        this.steamLibraryFolders.set(libraryFoldersPath.toString());
+        this.steamHandler.onSteamConfigurationUpdated(
+                executablePath,
+                libraryFoldersPath,
+                this.games,
+                this.loadingGames
+        );
+        save();
+        return true;
     }
 
-    public ReadOnlyStringProperty steamLocationProperty() {
-        return this.steamLocation.getReadOnlyProperty();
+    public ReadOnlyStringProperty steamExecutableProperty() {
+        return this.steamExecutable.getReadOnlyProperty();
     }
 
-    public @NotNull String getSteamLocation() {
-        String location = this.steamLocation.get();
+    public @NotNull String getSteamExecutable() {
+        String location = this.steamExecutable.get();
         return location == null ? "" : location;
     }
 
-    private void restoreSteamCache(String configuredSteamLocation) {
-        if (configuredSteamLocation.isEmpty())
-            return;
-
-        Optional<SteamCache> cachedSteamGames = this.steamCacheStore.load();
-        if (cachedSteamGames.isEmpty()
-                || !cachedSteamGames.get().steamLocation().equals(configuredSteamLocation)) {
-            this.steamCacheStore.save(constructSteamCache());
-            return;
-        }
-
-        for (SteamGameCacheEntry entry : cachedSteamGames.get().games()) {
-            if (getGameBySteamAppId(entry.appId()).isPresent())
-                continue;
-
-            this.games.add(new Game(
-                    entry.name(),
-                    "",
-                    entry.executionPath(),
-                    entry.thumbCoverImageURL(),
-                    entry.coverImageURL(),
-                    entry.name(),
-                    entry.appId()
-            ));
-        }
+    public ReadOnlyStringProperty steamLibraryFoldersProperty() {
+        return this.steamLibraryFolders.getReadOnlyProperty();
     }
 
-    private SteamCache constructSteamCache() {
-        List<SteamGameCacheEntry> cacheEntries = this.games.stream()
-                .filter(Game::isSteam)
-                .map(game -> new SteamGameCacheEntry(
-                        game.getSteamAppId(),
-                        game.getTitle(),
-                        game.getExecutionCommand(),
-                        game.getThumbCoverImageURL(),
-                        game.getCoverImageURL()
-                ))
-                .toList();
-        return new SteamCache(getSteamLocation(), cacheEntries);
+    public @NotNull String getSteamLibraryFolders() {
+        String location = this.steamLibraryFolders.get();
+        return location == null ? "" : location;
+    }
+
+    public boolean isSteamConfigured() {
+        return !getSteamExecutable().isEmpty() && !getSteamLibraryFolders().isEmpty();
     }
 
     private Optional<Game> findMatchingGame(Game game) {

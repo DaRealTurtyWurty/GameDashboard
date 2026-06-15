@@ -8,13 +8,14 @@ import dev.turtywurty.gamedashboard.data.model.DashboardConfig;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
 
 public final class ConfigStore {
     private static final String FILE_NAME = "config.json";
-    private static final DashboardConfig DEFAULT_CONFIG = new DashboardConfig(List.of(), "", List.of());
+    private static final DashboardConfig DEFAULT_CONFIG = new DashboardConfig(List.of(), "", "", List.of());
 
     private final Gson gson;
     private final Path configPath;
@@ -59,12 +60,71 @@ public final class ConfigStore {
                 : config.games().stream()
                 .filter(game -> game != null && game.getTitle() != null)
                 .toList();
-        String steamLocation = config.steamLocation() == null ? "" : config.steamLocation();
+        String configuredExecutable = config.steamExecutable() == null ? "" : config.steamExecutable().trim();
+        String configuredLibraryFolders = config.steamLibraryFolders() == null
+                ? ""
+                : config.steamLibraryFolders().trim();
+        String steamExecutable = normalizeSteamExecutable(configuredExecutable);
+        String steamLibraryFolders = normalizeSteamLibraryFolders(
+                configuredExecutable,
+                configuredLibraryFolders
+        );
         List<String> epicInstallLocations = config.epicInstallLocations() == null
                 ? List.of()
                 : config.epicInstallLocations().stream()
                 .filter(location -> location != null && !location.isBlank())
                 .toList();
-        return new DashboardConfig(games, steamLocation, epicInstallLocations);
+        return new DashboardConfig(games, steamExecutable, steamLibraryFolders, epicInstallLocations);
+    }
+
+    private static String normalizeSteamExecutable(String configuredExecutable) {
+        if (configuredExecutable.isEmpty())
+            return "";
+
+        Path path;
+        try {
+            path = Path.of(configuredExecutable);
+        } catch (InvalidPathException exception) {
+            return "";
+        }
+
+        if (!Files.isDirectory(path))
+            return path.toString();
+
+        String os = System.getProperty("os.name").toLowerCase();
+        if (os.contains("win"))
+            return path.resolve("steam.exe").toString();
+        if (os.contains("mac"))
+            return path.resolve("Contents").resolve("MacOS").resolve("steam_osx").toString();
+        return path.resolve("steam").toString();
+    }
+
+    private static String normalizeSteamLibraryFolders(
+            String configuredExecutable,
+            String configuredLibraryFolders
+    ) {
+        if (!configuredLibraryFolders.isEmpty()) {
+            Path path;
+            try {
+                path = Path.of(configuredLibraryFolders);
+            } catch (InvalidPathException exception) {
+                return "";
+            }
+            return Files.isDirectory(path) ? path.resolve("libraryfolders.vdf").toString() : path.toString();
+        }
+
+        if (configuredExecutable.isEmpty())
+            return "";
+
+        Path legacyPath;
+        try {
+            legacyPath = Path.of(configuredExecutable);
+        } catch (InvalidPathException exception) {
+            return "";
+        }
+        Path steamRoot = Files.isDirectory(legacyPath) ? legacyPath : legacyPath.getParent();
+        return steamRoot == null
+                ? ""
+                : steamRoot.resolve("steamapps").resolve("libraryfolders.vdf").toString();
     }
 }

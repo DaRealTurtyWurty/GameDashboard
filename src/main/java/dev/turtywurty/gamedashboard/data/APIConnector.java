@@ -18,14 +18,22 @@ import okhttp3.ResponseBody;
 
 import java.io.IOException;
 import java.net.SocketTimeoutException;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicLong;
 
 public final class APIConnector {
     private static final String BASE_URL = "https://api.turtywurty.dev/";
     private static final String PLACEHOLDER_COVER_URL = "https://fakeimg.pl/35x35";
+    private static final int MAX_RATE_LIMIT_RETRIES = 5;
+    private static final long MAX_RATE_LIMIT_DELAY_MILLIS = 60_000;
+    private static final AtomicLong RATE_LIMITED_UNTIL = new AtomicLong();
 
     private static final OkHttpClient HTTP_CLIENT = new OkHttpClient();
     private static final Gson GSON = new GsonBuilder()
@@ -191,42 +199,122 @@ public final class APIConnector {
     }
 
     private static JsonElement executeJson(Request request, String operation) {
-        try (Response response = HTTP_CLIENT.newCall(request).execute()) {
-            ResponseBody responseBody = response.body();
-            String responseText = responseBody == null ? "" : responseBody.string();
+        for (int attempt = 0; attempt <= MAX_RATE_LIMIT_RETRIES; attempt++) {
+            waitForRateLimit(operation);
 
-            if (!response.isSuccessful())
-                throw parseErrorResponse(response.code(), response.message(), responseText, operation);
+            try (Response response = HTTP_CLIENT.newCall(request).execute()) {
+                ResponseBody responseBody = response.body();
+                String responseText = responseBody == null ? "" : responseBody.string();
 
-            if (responseText.isBlank())
-                throw invalidResponse(operation, "Response body is empty", null);
+                if (!response.isSuccessful()) {
+                    APIException exception = parseErrorResponse(
+                            response.code(),
+                            response.message(),
+                            responseText,
+                            operation
+                    );
+                    if (exception.isRateLimited() && attempt < MAX_RATE_LIMIT_RETRIES) {
+                        long delayMillis = getRateLimitDelayMillis(response, attempt);
+                        extendRateLimit(delayMillis);
+                        GameDashboardApp.LOGGER.info(
+                                "{} was rate limited; retrying in {} ms ({}/{})",
+                                operation,
+                                delayMillis,
+                                attempt + 1,
+                                MAX_RATE_LIMIT_RETRIES
+                        );
+                        continue;
+                    }
+
+                    throw exception;
+                }
+
+                if (responseText.isBlank())
+                    throw invalidResponse(operation, "Response body is empty", null);
+
+                try {
+                    JsonElement json = GSON.fromJson(responseText, JsonElement.class);
+                    if (json == null || json.isJsonNull())
+                        throw invalidResponse(operation, "Response body contains null JSON", null);
+
+                    return json;
+                } catch (JsonParseException exception) {
+                    throw invalidResponse(operation, "Response body contains invalid JSON", exception);
+                }
+            } catch (SocketTimeoutException exception) {
+                throw new APIException(
+                        504,
+                        "timeout",
+                        operation + " timed out",
+                        null,
+                        exception
+                );
+            } catch (IOException exception) {
+                throw new APIException(
+                        503,
+                        "service_unavailable",
+                        operation + " could not reach the API",
+                        null,
+                        exception
+                );
+            }
+        }
+
+        throw new IllegalStateException("Rate limit retry loop completed unexpectedly");
+    }
+
+    private static void waitForRateLimit(String operation) {
+        while (true) {
+            long delayMillis = RATE_LIMITED_UNTIL.get() - System.currentTimeMillis();
+            if (delayMillis <= 0)
+                return;
 
             try {
-                JsonElement json = GSON.fromJson(responseText, JsonElement.class);
-                if (json == null || json.isJsonNull())
-                    throw invalidResponse(operation, "Response body contains null JSON", null);
-
-                return json;
-            } catch (JsonParseException exception) {
-                throw invalidResponse(operation, "Response body contains invalid JSON", exception);
+                Thread.sleep(delayMillis);
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                throw new APIException(
+                        503,
+                        "interrupted",
+                        operation + " was interrupted while waiting for the API rate limit",
+                        null,
+                        exception
+                );
             }
-        } catch (SocketTimeoutException exception) {
-            throw new APIException(
-                    504,
-                    "timeout",
-                    operation + " timed out",
-                    null,
-                    exception
-            );
-        } catch (IOException exception) {
-            throw new APIException(
-                    503,
-                    "service_unavailable",
-                    operation + " could not reach the API",
-                    null,
-                    exception
-            );
         }
+    }
+
+    private static void extendRateLimit(long delayMillis) {
+        long limitedUntil = System.currentTimeMillis() + delayMillis;
+        RATE_LIMITED_UNTIL.accumulateAndGet(limitedUntil, Math::max);
+    }
+
+    private static long getRateLimitDelayMillis(Response response, int attempt) {
+        String retryAfter = response.header("Retry-After");
+        if (retryAfter != null) {
+            try {
+                long seconds = Long.parseLong(retryAfter.trim());
+                return clampRateLimitDelay(seconds * 1_000);
+            } catch (NumberFormatException ignored) {
+                try {
+                    long delayMillis = ZonedDateTime.parse(
+                            retryAfter,
+                            DateTimeFormatter.RFC_1123_DATE_TIME
+                    ).toInstant().toEpochMilli() - System.currentTimeMillis();
+                    return clampRateLimitDelay(delayMillis);
+                } catch (DateTimeParseException ignoredDate) {
+                    // Fall through to exponential backoff.
+                }
+            }
+        }
+
+        long exponentialDelay = 1_000L << attempt;
+        long jitter = ThreadLocalRandom.current().nextLong(250, 751);
+        return clampRateLimitDelay(exponentialDelay + jitter);
+    }
+
+    private static long clampRateLimitDelay(long delayMillis) {
+        return Math.clamp(delayMillis, 0, MAX_RATE_LIMIT_DELAY_MILLIS);
     }
 
     private static APIException parseErrorResponse(
@@ -357,6 +445,7 @@ public final class APIConnector {
         return switch (statusCode) {
             case 400 -> "invalid_request";
             case 404 -> "not_found";
+            case 429 -> "rate_limited";
             case 502 -> "upstream_failure";
             case 503 -> "service_unavailable";
             case 504 -> "timeout";
@@ -419,6 +508,10 @@ public final class APIConnector {
 
         public boolean isNotFound() {
             return this.statusCode == 404;
+        }
+
+        public boolean isRateLimited() {
+            return this.statusCode == 429 || this.upstreamStatus != null && this.upstreamStatus == 429;
         }
     }
 
