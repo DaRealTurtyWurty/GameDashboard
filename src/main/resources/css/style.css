@@ -24,8 +24,7 @@
 
 .app-shell,
 .dashboard-content,
-.dialog-pane,
-.add-other-game-pane {
+.dialog-pane {
     -fx-background-color: -gd-bg;
 }
 
@@ -142,13 +141,6 @@
     -fx-border-width: 0.5;
     -fx-padding: 3;
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.24), 5, 0.12, 0, 1);
-}
-
-.add-game-button {
-    -fx-font-size: 14px;
-    -fx-font-weight: 700;
-    -fx-padding: 10 18 10 18;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.38), 14, 0.15, 0, 5);
 }
 
 /* Buttons */
@@ -339,54 +331,6 @@
 }
 
 .steam-dialog-actions {
-    -fx-alignment: center-right;
-}
-
-.add-game-pane {
-    -fx-padding: 24;
-}
-
-.add-game-content {
-    -fx-spacing: 18;
-}
-
-.add-game-form {
-    -fx-background-color: -gd-surface;
-    -fx-background-radius: 10;
-    -fx-border-color: -gd-border;
-    -fx-border-radius: 10;
-    -fx-padding: 16;
-    -fx-spacing: 16;
-}
-
-.add-game-field {
-    -fx-spacing: 7;
-}
-
-.add-game-field > .combo-box-base,
-.add-game-field > .text-field {
-    -fx-pref-height: 38;
-    -fx-max-width: infinity;
-}
-
-.add-game-executable-row {
-    -fx-spacing: 8;
-}
-
-.add-game-executable-row .text-field {
-    -fx-pref-height: 38;
-}
-
-.add-game-executable-row .browse-button {
-    -fx-min-width: 82;
-    -fx-pref-height: 38;
-}
-
-.add-game-form .error-label {
-    -fx-padding: 0;
-}
-
-.add-game-actions {
     -fx-alignment: center-right;
 }
 

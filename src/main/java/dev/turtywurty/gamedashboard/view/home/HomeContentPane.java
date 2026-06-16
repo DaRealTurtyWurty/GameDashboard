@@ -1,11 +1,8 @@
 package dev.turtywurty.gamedashboard.view.home;
 
-import dev.turtywurty.gamedashboard.GameDashboardApp;
-import dev.turtywurty.gamedashboard.data.APIConnector;
 import dev.turtywurty.gamedashboard.data.Database;
 import dev.turtywurty.gamedashboard.data.game.Game;
 import dev.turtywurty.gamedashboard.util.Utils;
-import dev.turtywurty.gamedashboard.view.add_game.AddGamePane;
 import dev.turtywurty.gamedashboard.view.general.GridGameEntry;
 import eu.hansolo.tilesfx.Tile;
 import eu.hansolo.tilesfx.TileBuilder;
@@ -14,20 +11,15 @@ import javafx.beans.value.ObservableValue;
 import javafx.collections.ListChangeListener;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.effect.DropShadow;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
-import javafx.stage.Modality;
-import javafx.stage.Stage;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.Comparator;
 import java.util.List;
@@ -40,41 +32,11 @@ public class HomeContentPane extends BorderPane {
 
     private final StackPane contentContainer = new StackPane();
 
-    private Button addGameButton;
     private ScrollPane scrollPane;
     private Pane content;
 
     public HomeContentPane() {
         getStyleClass().add("dashboard-content");
-
-        this.addGameButton = new Button("Add Game");
-        this.addGameButton.getStyleClass().addAll("primary-button", "add-game-button");
-        this.addGameButton.setEffect(new DropShadow());
-        this.addGameButton.setOnAction(event -> {
-            var pane = new AddGamePane();
-            var modalScene = new Scene(pane, 540, 500);
-            GameDashboardApp.applyStylesheet(modalScene);
-
-            var modal = new Stage();
-            modal.setTitle("Add Game");
-            modal.setScene(modalScene);
-            modal.initOwner(getScene().getWindow());
-            modal.initModality(Modality.APPLICATION_MODAL);
-            modal.setResizable(false);
-            modal.centerOnScreen();
-            modal.showAndWait();
-
-            @Nullable APIConnector.GameResult gameResult = pane.construct();
-            if (gameResult != null) {
-                var game = new Game(
-                        gameResult.getName(),
-                        gameResult.getSummary(),
-                        pane.getExecutablePath());
-                game.setThumbCoverImageURL(gameResult.getThumbCoverURL());
-                game.setCoverImageURL(gameResult.getCoverURL());
-                game.setNickname(gameResult.getName());
-            }
-        });
 
         // TODO: Create views for LIST and DETAILS
 
@@ -117,10 +79,8 @@ public class HomeContentPane extends BorderPane {
         this.scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         this.scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
 
-        this.contentContainer.getChildren().setAll(this.scrollPane, this.addGameButton);
+        this.contentContainer.getChildren().setAll(this.scrollPane);
         this.contentContainer.setAlignment(Pos.CENTER);
-        StackPane.setAlignment(this.addGameButton, Pos.BOTTOM_RIGHT);
-        StackPane.setMargin(this.addGameButton, Utils.createInsets(0, 15, 15, 0));
 
         Database.getInstance().getGames().addListener((ListChangeListener<? super Game>) change -> {
             refreshGameTiles();
