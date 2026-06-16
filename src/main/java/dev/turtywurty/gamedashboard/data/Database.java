@@ -7,11 +7,14 @@ import dev.turtywurty.gamedashboard.data.game.Game;
 import dev.turtywurty.gamedashboard.data.model.DashboardConfig;
 import dev.turtywurty.gamedashboard.data.store.ConfigStore;
 import dev.turtywurty.gamedashboard.data.store.GameStore;
+import dev.turtywurty.gamedashboard.util.ProgressMonitor;
+import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
+import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
 
 import java.nio.file.InvalidPathException;
@@ -40,6 +43,8 @@ public final class Database {
     private final ReadOnlyStringWrapper steamLibraryFolders = new ReadOnlyStringWrapper("");
 
     private boolean loadingConfig;
+    @Getter
+    private boolean onboardingComplete;
 
     private Database() {
         Path appDataPath = getAppDataPath();
@@ -78,6 +83,7 @@ public final class Database {
             this.steamExecutable.set(executable);
             this.steamLibraryFolders.set(libraryFolders);
             this.epicGamesInstallLocations.setAll(config.epicInstallLocations());
+            this.onboardingComplete = config.onboardingComplete();
         } finally {
             this.loadingConfig = false;
         }
@@ -94,7 +100,8 @@ public final class Database {
         this.configStore.save(new DashboardConfig(
                 getSteamExecutable(),
                 getSteamLibraryFolders(),
-                new ArrayList<>(this.epicGamesInstallLocations)
+                new ArrayList<>(this.epicGamesInstallLocations),
+                this.onboardingComplete
         ));
         this.gameStore.save(new ArrayList<>(this.games));
     }
@@ -144,6 +151,10 @@ public final class Database {
     }
 
     public boolean setSteamConfiguration(String executable, String libraryFolders) {
+        return setSteamConfiguration(executable, libraryFolders, null);
+    }
+
+    public boolean setSteamConfiguration(String executable, String libraryFolders, ProgressMonitor progressMonitor) {
         if (executable == null || libraryFolders == null)
             return false;
 
@@ -158,13 +169,16 @@ public final class Database {
         if (!SteamHandler.isSteamConfigurationValid(executablePath, libraryFoldersPath))
             return false;
 
-        this.steamExecutable.set(executablePath.toString());
-        this.steamLibraryFolders.set(libraryFoldersPath.toString());
+        runOnFxThread(() -> {
+            this.steamExecutable.set(executablePath.toString());
+            this.steamLibraryFolders.set(libraryFoldersPath.toString());
+        });
         this.steamHandler.onSteamConfigurationUpdated(
                 executablePath,
                 libraryFoldersPath,
                 this.games,
-                this.loadingGames
+                this.loadingGames,
+                progressMonitor
         );
         save();
         return true;
@@ -199,5 +213,18 @@ public final class Database {
         return this.games.stream()
                 .filter(game::matches)
                 .findFirst();
+    }
+
+    private void runOnFxThread(Runnable action) {
+        if (Platform.isFxApplicationThread()) {
+            action.run();
+        } else {
+            Platform.runLater(action);
+        }
+    }
+
+    public void completeOnboarding() {
+        this.onboardingComplete = true;
+        save();
     }
 }

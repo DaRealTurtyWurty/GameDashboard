@@ -1,12 +1,16 @@
 package dev.turtywurty.gamedashboard;
 
+import dev.turtywurty.gamedashboard.data.Database;
 import dev.turtywurty.gamedashboard.preloader.GameDashboardPreloader;
 import dev.turtywurty.gamedashboard.view.GameDashboardPane;
+import dev.turtywurty.gamedashboard.view.onboarding.OnboardingPane;
 import io.github.cdimascio.dotenv.Dotenv;
 import javafx.application.Application;
+import javafx.application.HostServices;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.image.Image;
+import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,11 +26,28 @@ public class GameDashboardApp extends Application {
             .filename(".env")
             .load();
 
+    private static GameDashboardApp app;
+
     public static final Logger LOGGER = LoggerFactory.getLogger(GameDashboardApp.class);
 
     @Override
     public void start(Stage primaryStage) {
-        Scene scene = new Scene(new GameDashboardPane(), 800, 600);
+        app = this;
+
+        var root = new StackPane();
+
+        Runnable openDashboard = () -> Platform.runLater(() -> root.getChildren().setAll(new GameDashboardPane()));
+
+        if (Database.getInstance().isOnboardingComplete()) {
+            openDashboard.run();
+        } else {
+            root.getChildren().setAll(new OnboardingPane(() -> {
+                Database.getInstance().completeOnboarding();
+                openDashboard.run();
+            }));
+        }
+
+        var scene = new Scene(root, 800, 600);
         applyStylesheet(scene);
         primaryStage.setTitle("Game Dashboard");
         primaryStage.getIcons().add(new Image(getClass().getResource("/images/logo_transparent_bg.png").toExternalForm()));
@@ -34,7 +55,6 @@ public class GameDashboardApp extends Application {
         primaryStage.setMinHeight(400);
         primaryStage.setScene(scene);
         primaryStage.centerOnScreen();
-        Platform.setImplicitExit(false);
 
         primaryStage.setOnCloseRequest(event -> {
             event.consume();
@@ -54,6 +74,10 @@ public class GameDashboardApp extends Application {
 
     public static void applyStylesheet(Scene scene) {
         scene.getStylesheets().add(GameDashboardApp.class.getResource(STYLESHEET).toExternalForm());
+    }
+
+    public static HostServices getHostServicesInstance() {
+        return app.getHostServices();
     }
 
     private static Path getAppDataDirectory() {

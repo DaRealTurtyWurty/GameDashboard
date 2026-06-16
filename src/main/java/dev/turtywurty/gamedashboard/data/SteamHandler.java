@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import dev.turtywurty.gamedashboard.GameDashboardApp;
 import dev.turtywurty.gamedashboard.data.game.Game;
+import dev.turtywurty.gamedashboard.util.ProgressMonitor;
 import dev.turtywurty.gamedashboard.util.VDFtoJson;
 import javafx.application.Platform;
 import javafx.collections.ObservableList;
@@ -68,17 +69,6 @@ public class SteamHandler {
         }
 
         return appManifests;
-    }
-
-    public static String normalizeSteamName(String name) {
-        String normalizedName = name.toLowerCase(Locale.ROOT).replaceAll("[^a-zA-Z0-9 \\-_:']", "");
-        if (normalizedName.endsWith("demo"))
-            normalizedName = normalizedName.substring(0, normalizedName.length() - 4);
-
-        if (normalizedName.endsWith("game"))
-            normalizedName = normalizedName.substring(0, normalizedName.length() - 4);
-
-        return normalizedName.trim();
     }
 
     private static String getExecutionCommand(JsonObject appState) {
@@ -162,28 +152,39 @@ public class SteamHandler {
         return futures;
     }
 
-    private static void loadGames(List<Supplier<Game>> futures, ObservableList<Game> games, ObservableList<String> loadingGames) {
+    private static void loadGames(
+            Map<String, Supplier<Game>> futures,
+            ObservableList<Game> games,
+            ObservableList<String> loadingGames,
+            ProgressMonitor progressMonitor
+    ) {
 
         try(ExecutorService executorService = Executors.newFixedThreadPool(2)) {
-            for (Supplier<Game> futureSupplier : futures) {
+            for (Map.Entry<String, Supplier<Game>> entry : futures.entrySet()) {
+                String name = entry.getKey();
+                Supplier<Game> futureSupplier = entry.getValue();
                 executorService.submit(() -> {
                     try {
                         Game game = futureSupplier.get();
 
                         Platform.runLater(() -> {
-                            String name = loadingGames.removeFirst();
-
                             if (game == null) {
                                 GameDashboardApp.LOGGER.warn("Failed to load game {}", name);
                             } else {
                                 games.add(game);
                             }
+
+                            loadingGames.remove(name);
                         });
                     } catch (Exception exception) {
                         Platform.runLater(() -> {
-                            String name = loadingGames.removeFirst();
                             GameDashboardApp.LOGGER.error("Error loading game {}", name, exception);
+                            loadingGames.remove(name);
                         });
+                    } finally {
+                        if (progressMonitor != null) {
+                            progressMonitor.worked(1);
+                        }
                     }
                 });
             }
@@ -275,37 +276,39 @@ public class SteamHandler {
     }
 
     public static Optional<Path> discoverSteamLibraryFoldersLocation() {
-        return discoverSteamLocation().flatMap(steamExecutable -> {
-            String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
-            if (os.contains("win"))
-                return findLibraryFoldersLocation(steamExecutable.getParent());
+        return discoverSteamLocation().flatMap(SteamHandler::discoverSteamLibraryFoldersLocation);
+    }
 
-            if (os.contains("mac")) {
-                Path steamRoot = Path.of(
-                        System.getProperty("user.home"),
-                        "Library",
-                        "Application Support",
-                        "Steam"
-                );
-                return findLibraryFoldersLocation(steamRoot);
-            }
+    public static Optional<Path> discoverSteamLibraryFoldersLocation(Path steamExecutable) {
+        String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
+        if (os.contains("win"))
+            return findLibraryFoldersLocation(steamExecutable.getParent());
 
-            if (os.contains("nix") || os.contains("nux") || os.contains("aix")) {
-                String userHome = System.getProperty("user.home");
-                List<Path> candidates = List.of(
-                        Path.of(userHome, ".local", "share", "Steam"),
-                        Path.of(userHome, ".steam", "steam"),
-                        Path.of(userHome, ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam")
-                );
+        if (os.contains("mac")) {
+            Path steamRoot = Path.of(
+                    System.getProperty("user.home"),
+                    "Library",
+                    "Application Support",
+                    "Steam"
+            );
+            return findLibraryFoldersLocation(steamRoot);
+        }
 
-                return candidates.stream()
-                        .map(SteamHandler::findLibraryFoldersLocation)
-                        .flatMap(Optional::stream)
-                        .findFirst();
-            }
+        if (os.contains("nix") || os.contains("nux") || os.contains("aix")) {
+            String userHome = System.getProperty("user.home");
+            List<Path> candidates = List.of(
+                    Path.of(userHome, ".local", "share", "Steam"),
+                    Path.of(userHome, ".steam", "steam"),
+                    Path.of(userHome, ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam")
+            );
 
-            return Optional.empty();
-        });
+            return candidates.stream()
+                    .map(SteamHandler::findLibraryFoldersLocation)
+                    .flatMap(Optional::stream)
+                    .findFirst();
+        }
+
+        return Optional.empty();
     }
 
     private static Optional<Path> findLibraryFoldersLocation(Path steamRoot) {
@@ -495,19 +498,48 @@ public class SteamHandler {
             Path executable,
             Path libraryFoldersPath,
             ObservableList<Game> games,
-            ObservableList<String> loadingGames
+            ObservableList<String> loadingGames,
+            ProgressMonitor progressMonitor
     ) {
         if (!isSteamConfigurationValid(executable, libraryFoldersPath))
             return;
 
-        games.removeIf(SteamGame.class::isInstance);
+        runOnFxThread(() -> games.removeIf(SteamGame.class::isInstance));
 
         Map<String, Supplier<Game>> steamGames = locateSteamGames(libraryFoldersPath);
-        if (steamGames.isEmpty())
-            return;
+        if (steamGames.isEmpty()) {
+            if (progressMonitor != null) {
+                progressMonitor.done();
+            }
 
-        Platform.runLater(() -> loadingGames.addAll(steamGames.keySet()));
-        new Thread(() -> loadGames(new ArrayList<>(steamGames.values()), games, loadingGames)).start();
+            return;
+        }
+
+        if (progressMonitor != null) {
+            progressMonitor.start("Loading Steam games", steamGames.size());
+        }
+
+        runOnFxThread(() -> loadingGames.addAll(steamGames.keySet()));
+        Runnable loadAction = () -> {
+            loadGames(steamGames, games, loadingGames, progressMonitor);
+            if (progressMonitor != null) {
+                progressMonitor.done();
+            }
+        };
+
+        if (progressMonitor == null) {
+            new Thread(loadAction).start();
+        } else {
+            loadAction.run();
+        }
+    }
+
+    private static void runOnFxThread(Runnable action) {
+        if (Platform.isFxApplicationThread()) {
+            action.run();
+        } else {
+            Platform.runLater(action);
+        }
     }
 
     public record LocationDetails(String name, String executionCommand, int appId) {

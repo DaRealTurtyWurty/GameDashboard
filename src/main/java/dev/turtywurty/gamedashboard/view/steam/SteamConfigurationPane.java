@@ -16,6 +16,7 @@ import javafx.stage.FileChooser;
 import java.io.File;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
+import java.util.Optional;
 
 public class SteamConfigurationPane extends BorderPane {
     private final TextField executableField;
@@ -118,24 +119,6 @@ public class SteamConfigurationPane extends BorderPane {
         chooseFile(this.executableField, "Select Steam Executable", null);
     }
 
-    private void autoDetect() {
-        var executable = SteamHandler.discoverSteamLocation();
-        var libraryFolders = SteamHandler.discoverSteamLibraryFoldersLocation();
-
-        executable.ifPresent(path -> this.executableField.setText(path.toString()));
-        libraryFolders.ifPresent(path -> this.libraryFoldersField.setText(path.toString()));
-
-        if (executable.isEmpty() && libraryFolders.isEmpty()) {
-            showError("Steam could not be detected. Select both files manually.");
-        } else if (executable.isEmpty()) {
-            showError("The Steam executable could not be detected. Select it manually.");
-        } else if (libraryFolders.isEmpty()) {
-            showError("libraryfolders.vdf could not be detected. Select it manually.");
-        } else {
-            hideError();
-        }
-    }
-
     private void chooseLibraryFolders() {
         chooseFile(
                 this.libraryFoldersField,
@@ -147,16 +130,18 @@ public class SteamConfigurationPane extends BorderPane {
     private void chooseFile(TextField field, String title, FileChooser.ExtensionFilter filter) {
         var chooser = new FileChooser();
         chooser.setTitle(title);
-        if (filter != null)
+        if (filter != null) {
             chooser.getExtensionFilters().add(filter);
+        }
 
         String currentPath = field.getText();
         File currentFile = currentPath == null || currentPath.isBlank() ? null : new File(currentPath);
         File initialDirectory = currentFile != null && currentFile.getParentFile() != null
                 ? currentFile.getParentFile()
                 : new File(System.getProperty("user.home"));
-        if (initialDirectory.isDirectory())
+        if (initialDirectory.isDirectory()) {
             chooser.setInitialDirectory(initialDirectory);
+        }
 
         File selectedFile = chooser.showOpenDialog(getScene().getWindow());
         if (selectedFile != null) {
@@ -214,11 +199,30 @@ public class SteamConfigurationPane extends BorderPane {
         this.errorLabel.setVisible(false);
     }
 
+    private void autoDetect() {
+        Optional<Path> executable = SteamHandler.discoverSteamLocation();
+        Optional<Path> libraryFolders = SteamHandler.discoverSteamLibraryFoldersLocation();
+
+        executable.ifPresent(path -> this.executableField.setText(path.toString()));
+        libraryFolders.ifPresent(path -> this.libraryFoldersField.setText(path.toString()));
+
+        if (executable.isEmpty() && libraryFolders.isEmpty()) {
+            showError("Steam could not be detected. Select both files manually.");
+        } else if (executable.isEmpty()) {
+            showError("The Steam executable could not be detected. Select it manually.");
+        } else if (libraryFolders.isEmpty()) {
+            showError("libraryfolders.vdf could not be detected. Select it manually.");
+        } else {
+            hideError();
+        }
+    }
+
     public void construct() {
-        if (this.saved)
+        if (this.saved) {
             Database.getInstance().setSteamConfiguration(
                     this.executableField.getText(),
                     this.libraryFoldersField.getText()
             );
+        }
     }
 }

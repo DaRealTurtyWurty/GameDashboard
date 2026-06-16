@@ -14,7 +14,7 @@ import java.util.Objects;
 
 public final class ConfigStore {
     private static final String FILE_NAME = "config.json";
-    private static final DashboardConfig DEFAULT_CONFIG = new DashboardConfig("", "", List.of());
+    private static final DashboardConfig DEFAULT_CONFIG = new DashboardConfig("", "", List.of(), false);
 
     private final Gson gson;
     private final Path configPath;
@@ -68,7 +68,7 @@ public final class ConfigStore {
                 : config.epicInstallLocations().stream()
                 .filter(location -> location != null && !location.isBlank())
                 .toList();
-        return new DashboardConfig(steamExecutable, steamLibraryFolders, epicInstallLocations);
+        return new DashboardConfig(steamExecutable, steamLibraryFolders, epicInstallLocations, config.onboardingComplete());
     }
 
     private static String normalizeSteamExecutable(String configuredExecutable) {

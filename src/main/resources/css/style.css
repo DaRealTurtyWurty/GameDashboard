@@ -392,6 +392,265 @@
     -fx-cursor: hand;
 }
 
+/* Onboarding */
+
+.onboarding-pane {
+    -fx-background-color: -gd-bg;
+    -fx-padding: 34;
+}
+
+.onboarding-card {
+    -fx-background-color: -gd-surface;
+    -fx-background-radius: 16;
+    -fx-border-color: -gd-border;
+    -fx-border-radius: 16;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.42), 28, 0.16, 0, 10);
+}
+
+.onboarding-progress-header {
+    -fx-spacing: 8;
+    -fx-padding: 22 28 0 28;
+}
+
+.onboarding-step-label,
+.onboarding-eyebrow {
+    -fx-font-size: 11px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -gd-accent-hover;
+}
+
+.onboarding-progress {
+    -fx-pref-height: 6;
+}
+
+.onboarding-progress > .track {
+    -fx-background-color: #1e1e27;
+    -fx-background-radius: 8;
+}
+
+.onboarding-progress > .bar {
+    -fx-background-color: linear-gradient(to right, -gd-accent, -gd-accent-hover);
+    -fx-background-radius: 8;
+    -fx-background-insets: 0;
+}
+
+.onboarding-actions {
+    -fx-alignment: center-left;
+    -fx-padding: 18 28 24 28;
+    -fx-border-color: -gd-border transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
+}
+
+.welcome-page,
+.appearance-page,
+.platforms-page {
+    -fx-padding: 34 40 30 40;
+}
+
+.welcome-page {
+    -fx-alignment: center;
+    -fx-spacing: 12;
+}
+
+.welcome-logo {
+    -fx-effect: dropshadow(gaussian, rgba(124, 92, 255, 0.38), 24, 0.18, 0, 5);
+}
+
+.welcome-title,
+.appearance-title,
+.platforms-title {
+    -fx-font-size: 28px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -gd-text;
+}
+
+.welcome-title,
+.welcome-description {
+    -fx-text-alignment: center;
+}
+
+.welcome-description,
+.appearance-description,
+.platforms-description {
+    -fx-font-size: 14px;
+    -fx-text-fill: -gd-text-muted;
+    -fx-line-spacing: 2px;
+}
+
+.welcome-description {
+    -fx-max-width: 580;
+}
+
+.welcome-features {
+    -fx-alignment: center;
+    -fx-hgap: 14;
+    -fx-vgap: 14;
+    -fx-padding: 18 0 0 0;
+}
+
+.welcome-feature {
+    -fx-background-color: -gd-surface-raised;
+    -fx-background-radius: 10;
+    -fx-border-color: -gd-border;
+    -fx-border-radius: 10;
+    -fx-padding: 16;
+    -fx-spacing: 5;
+    -fx-pref-width: 260;
+    -fx-min-height: 128;
+}
+
+.welcome-feature-marker {
+    -fx-background-color: rgba(124, 92, 255, 0.18);
+    -fx-background-radius: 20;
+    -fx-text-fill: -gd-accent-hover;
+    -fx-font-size: 14px;
+    -fx-font-weight: 700;
+    -fx-alignment: center;
+    -fx-min-width: 28;
+    -fx-min-height: 28;
+    -fx-max-width: 28;
+    -fx-max-height: 28;
+}
+
+.welcome-feature-title {
+    -fx-font-size: 14px;
+    -fx-font-weight: 700;
+}
+
+.welcome-feature-description {
+    -fx-font-size: 12px;
+    -fx-text-fill: -gd-text-muted;
+}
+
+.appearance-page,
+.platforms-page {
+    -fx-spacing: 10;
+}
+
+.appearance-option-label {
+    -fx-font-size: 13px;
+    -fx-font-weight: 700;
+    -fx-padding: 18 0 0 0;
+}
+
+.appearance-options {
+    -fx-hgap: 12;
+    -fx-vgap: 12;
+}
+
+.appearance-option {
+    -fx-background-color: -gd-surface-raised;
+    -fx-background-radius: 10;
+    -fx-border-color: -gd-border;
+    -fx-border-radius: 10;
+    -fx-border-width: 1;
+    -fx-padding: 10;
+    -fx-spacing: 7;
+    -fx-min-width: 150;
+}
+
+.appearance-option.selected {
+    -fx-border-color: -gd-accent;
+    -fx-border-width: 2;
+    -fx-effect: dropshadow(gaussian, rgba(124, 92, 255, 0.22), 10, 0.1, 0, 0);
+}
+
+.appearance-option.unavailable {
+    -fx-opacity: 0.55;
+}
+
+.appearance-preview {
+    -fx-min-height: 82;
+    -fx-background-radius: 7;
+    -fx-border-radius: 7;
+    -fx-border-width: 1;
+}
+
+.appearance-preview-dark {
+    -fx-background-color: linear-gradient(to bottom right, #181820 55%, #2f2f3a 55%);
+    -fx-border-color: #484857;
+}
+
+.appearance-preview-light {
+    -fx-background-color: linear-gradient(to bottom right, #f3f3f6 55%, #dedee6 55%);
+    -fx-border-color: #b9b9c5;
+}
+
+.appearance-preview-system {
+    -fx-background-color: linear-gradient(to bottom right, #181820 50%, #f3f3f6 50%);
+    -fx-border-color: #686879;
+}
+
+.appearance-option-name {
+    -fx-font-size: 14px;
+    -fx-font-weight: 700;
+}
+
+.appearance-option-status,
+.appearance-note {
+    -fx-font-size: 12px;
+    -fx-text-fill: -gd-text-muted;
+}
+
+.appearance-note {
+    -fx-padding: 8 0 0 0;
+}
+
+.platforms-scroll-pane {
+    -fx-padding: 12 0 0 0;
+}
+
+.platforms-grid {
+    -fx-hgap: 14;
+    -fx-vgap: 14;
+    -fx-padding: 2 8 8 2;
+}
+
+.platform-tile {
+    -fx-background-color: -gd-surface-raised;
+    -fx-background-radius: 12;
+    -fx-border-color: -gd-border;
+    -fx-border-radius: 12;
+    -fx-padding: 18;
+    -fx-spacing: 14;
+    -fx-min-width: 280;
+    -fx-max-width: 760;
+}
+
+.platform-header {
+    -fx-alignment: center-left;
+    -fx-spacing: 16;
+}
+
+.platform-icon {
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.34), 12, 0.12, 0, 4);
+}
+
+.platform-details {
+    -fx-spacing: 5;
+}
+
+.platform-name {
+    -fx-font-size: 18px;
+    -fx-font-weight: 700;
+}
+
+.platform-description {
+    -fx-font-size: 12px;
+    -fx-text-fill: -gd-text-muted;
+    -fx-line-spacing: 1px;
+}
+
+.platform-actions {
+    -fx-alignment: center-right;
+    -fx-hgap: 8;
+    -fx-vgap: 8;
+}
+
+.platform-actions .button {
+    -fx-padding: 7 12 7 12;
+}
+
 /* Scrollable surfaces */
 
 .scroll-pane,
@@ -452,4 +711,44 @@
 .progress-bar > .bar {
     -fx-background-color: -gd-accent;
     -fx-background-radius: 5;
+}
+
+.platform-discovery-monitor {
+    -fx-background-color: #1e1e27;
+    -fx-background-radius: 8;
+    -fx-border-color: -gd-border;
+    -fx-border-radius: 8;
+    -fx-spacing: 5;
+    -fx-padding: 10 12 10 12;
+}
+
+.platform-discovery-task {
+    -fx-font-size: 12px;
+    -fx-font-weight: 600;
+}
+
+.platform-discovery-progress {
+    -fx-pref-height: 8;
+}
+
+.platform-discovery-status {
+    -fx-font-size: 11px;
+    -fx-text-fill: -gd-text-muted;
+}
+
+.platform-advanced-dialog {
+    -fx-background-color: -gd-bg;
+}
+
+.platform-advanced-dialog > .header-panel {
+    -fx-background-color: -gd-surface;
+}
+
+.platform-advanced-dialog > .header-panel > .label {
+    -fx-font-size: 18px;
+    -fx-font-weight: 700;
+}
+
+.platform-advanced-dialog > .content {
+    -fx-padding: 20;
 }

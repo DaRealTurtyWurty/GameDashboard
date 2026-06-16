@@ -10,6 +10,7 @@ public record DashboardConfig(
         String steamExecutable,
         String steamLibraryFolders,
         @SerializedName(value = "epicGamesInstallLocations", alternate = "epicInstallLocations")
-        List<String> epicInstallLocations
+        List<String> epicInstallLocations,
+        boolean onboardingComplete
 ) {
 }
