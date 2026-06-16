@@ -4,6 +4,8 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import dev.turtywurty.gamedashboard.GameDashboardApp;
 import dev.turtywurty.gamedashboard.data.game.Game;
+import dev.turtywurty.gamedashboard.data.game.impl.SteamGame;
+import dev.turtywurty.gamedashboard.util.OperatingSystem;
 import dev.turtywurty.gamedashboard.util.ProgressMonitor;
 import dev.turtywurty.gamedashboard.util.VDFtoJson;
 import javafx.application.Platform;
@@ -159,7 +161,7 @@ public class SteamHandler {
             ProgressMonitor progressMonitor
     ) {
 
-        try(ExecutorService executorService = Executors.newFixedThreadPool(2)) {
+        try (ExecutorService executorService = Executors.newFixedThreadPool(2)) {
             for (Map.Entry<String, Supplier<Game>> entry : futures.entrySet()) {
                 String name = entry.getKey();
                 Supplier<Game> futureSupplier = entry.getValue();
@@ -198,12 +200,12 @@ public class SteamHandler {
             return false;
 
         String fileName = executable.getFileName().toString();
-        String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
-        if (os.contains("win"))
-            return "steam.exe".equalsIgnoreCase(fileName);
-        if (os.contains("mac"))
-            return "steam_osx".equals(fileName);
-        return "steam".equals(fileName);
+
+        return switch (OperatingSystem.CURRENT) {
+            case WINDOWS -> "steam.exe".equalsIgnoreCase(fileName);
+            case MACOS -> "steam_osx".equals(fileName);
+            default -> "steam".equals(fileName);
+        };
     }
 
     public static boolean isSteamLibraryFoldersValid(Path libraryFoldersPath) {
@@ -217,9 +219,7 @@ public class SteamHandler {
     }
 
     public static Optional<Path> discoverSteamLocation() {
-        String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
-
-        if (os.contains("win")) {
+        if (OperatingSystem.CURRENT == OperatingSystem.WINDOWS) {
             Optional<Path> registryPath = findSteamLocationFromRegistry();
             if (registryPath.isPresent())
                 return registryPath;
@@ -237,7 +237,7 @@ public class SteamHandler {
                 return uriProtocolPath;
 
             // Check common installation paths
-            for(char drive = 'C'; drive <= 'Z'; drive++) {
+            for (char drive = 'C'; drive <= 'Z'; drive++) {
                 try {
                     Path commonPath = Path.of(drive + ":\\Program Files (x86)\\Steam\\steam.exe");
                     if (Files.isRegularFile(commonPath))
@@ -254,7 +254,7 @@ public class SteamHandler {
                     // Some drives may not be happy with this, so we just ignore any exceptions and continue checking other drives.
                 }
             }
-        } else if (os.contains("mac")) {
+        } else if (OperatingSystem.CURRENT == OperatingSystem.MACOS) {
             Optional<Path> spotlightPath = findSteamFromSpotlight();
             if (spotlightPath.isPresent())
                 return spotlightPath;
@@ -264,7 +264,7 @@ public class SteamHandler {
                 return Optional.of(steamExecutable);
 
             return findProcessRunningPath("steam", true);
-        } else if (os.contains("nix") || os.contains("nux") || os.contains("aix")) {
+        } else if (OperatingSystem.CURRENT == OperatingSystem.LINUX) {
             Optional<Path> commandPath = findCommandPath("steam");
             if (commandPath.isPresent())
                 return commandPath;
@@ -280,35 +280,29 @@ public class SteamHandler {
     }
 
     public static Optional<Path> discoverSteamLibraryFoldersLocation(Path steamExecutable) {
-        String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
-        if (os.contains("win"))
-            return findLibraryFoldersLocation(steamExecutable.getParent());
-
-        if (os.contains("mac")) {
-            Path steamRoot = Path.of(
+        return switch (OperatingSystem.CURRENT) {
+            case WINDOWS -> findLibraryFoldersLocation(steamExecutable.getParent());
+            case MACOS -> findLibraryFoldersLocation(Path.of(
                     System.getProperty("user.home"),
                     "Library",
                     "Application Support",
                     "Steam"
-            );
-            return findLibraryFoldersLocation(steamRoot);
-        }
+            ));
+            case LINUX -> {
+                String userHome = System.getProperty("user.home");
+                List<Path> candidates = List.of(
+                        Path.of(userHome, ".local", "share", "Steam"),
+                        Path.of(userHome, ".steam", "steam"),
+                        Path.of(userHome, ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam")
+                );
 
-        if (os.contains("nix") || os.contains("nux") || os.contains("aix")) {
-            String userHome = System.getProperty("user.home");
-            List<Path> candidates = List.of(
-                    Path.of(userHome, ".local", "share", "Steam"),
-                    Path.of(userHome, ".steam", "steam"),
-                    Path.of(userHome, ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam")
-            );
-
-            return candidates.stream()
-                    .map(SteamHandler::findLibraryFoldersLocation)
-                    .flatMap(Optional::stream)
-                    .findFirst();
-        }
-
-        return Optional.empty();
+                yield candidates.stream()
+                        .map(SteamHandler::findLibraryFoldersLocation)
+                        .flatMap(Optional::stream)
+                        .findFirst();
+            }
+            default -> Optional.empty();
+        };
     }
 
     private static Optional<Path> findLibraryFoldersLocation(Path steamRoot) {
@@ -322,8 +316,7 @@ public class SteamHandler {
     }
 
     private static Optional<Path> findSteamLocationFromRegistry() {
-        String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
-        if (!os.contains("win"))
+        if (OperatingSystem.CURRENT != OperatingSystem.WINDOWS)
             return Optional.empty();
 
         String steamPath = readRegistryValue(
@@ -350,8 +343,7 @@ public class SteamHandler {
     }
 
     private static String readRegistryValue(String key, @Nullable String valueName) {
-        String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
-        if (!os.contains("win"))
+        if (OperatingSystem.CURRENT != OperatingSystem.WINDOWS)
             return null;
 
         try {
@@ -411,8 +403,7 @@ public class SteamHandler {
     }
 
     private static Optional<Path> findSteamLocationFromStartMenu() {
-        String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
-        if (!os.contains("win"))
+        if (OperatingSystem.CURRENT != OperatingSystem.WINDOWS)
             return Optional.empty();
 
         Path startMenuPath1 = Path.of(System.getenv("APPDATA"), "Microsoft", "Windows", "Start Menu", "Programs", "Steam");
@@ -447,8 +438,7 @@ public class SteamHandler {
     }
 
     private static Optional<Path> findSteamLocationFromURIProtocol() {
-        String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
-        if (!os.contains("win"))
+        if (OperatingSystem.CURRENT != OperatingSystem.WINDOWS)
             return Optional.empty();
 
         String steamURI = readRegistryValue(
@@ -466,8 +456,7 @@ public class SteamHandler {
     }
 
     private static Optional<Path> findSteamFromSpotlight() {
-        String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
-        if (!os.contains("mac"))
+        if (OperatingSystem.CURRENT != OperatingSystem.MACOS)
             return Optional.empty();
 
         try {

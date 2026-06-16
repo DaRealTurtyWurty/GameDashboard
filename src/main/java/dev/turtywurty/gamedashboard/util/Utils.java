@@ -56,6 +56,9 @@ public class Utils {
 
     public static Color getAverageColor(Image backgroundImage) {
         BufferedImage bufferedImage = SwingFXUtils.fromFXImage(backgroundImage, null);
+        if (bufferedImage == null)
+            return Color.web("#2f2f3a");
+
         int width = bufferedImage.getWidth();
         int height = bufferedImage.getHeight();
 

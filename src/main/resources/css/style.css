@@ -134,6 +134,16 @@
     -fx-background-color: #3f3f4a;
 }
 
+.platform-badge {
+    -fx-background-color: rgba(24, 24, 32, 0.62);
+    -fx-background-radius: 15;
+    -fx-border-color: rgba(255, 255, 255, 0.14);
+    -fx-border-radius: 15;
+    -fx-border-width: 0.5;
+    -fx-padding: 3;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.24), 5, 0.12, 0, 1);
+}
+
 .add-game-button {
     -fx-font-size: 14px;
     -fx-font-weight: 700;

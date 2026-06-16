@@ -164,11 +164,11 @@ public class HomeContentPane extends BorderPane {
     private void refreshGameTiles() {
         this.content.getChildren().removeIf(node -> node.getUserData() instanceof Game);
 
-        Tile[] gameTiles = Database.getInstance().getGames().stream()
+        Node[] gameTiles = Database.getInstance().getGames().stream()
                 .sorted(GAME_TITLE_COMPARATOR)
                 .map(GridGameEntry::new)
-                .map(GridGameEntry::getTile)
-                .toArray(Tile[]::new);
+                .map(GridGameEntry::getNode)
+                .toArray(Node[]::new);
 
         this.content.getChildren().addAll(0, List.of(gameTiles));
     }

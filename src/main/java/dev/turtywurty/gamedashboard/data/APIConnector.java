@@ -33,7 +33,11 @@ public final class APIConnector {
     private static final String PLACEHOLDER_COVER_URL = "https://fakeimg.pl/35x35";
     private static final int MAX_RATE_LIMIT_RETRIES = 5;
     private static final long MAX_RATE_LIMIT_DELAY_MILLIS = 60_000;
+    private static final long MIN_REQUEST_INTERVAL_MILLIS = 250;
+    private static final Object REQUEST_THROTTLE_LOCK = new Object();
     private static final AtomicLong RATE_LIMITED_UNTIL = new AtomicLong();
+
+    private static long nextRequestTimeMillis;
 
     private static final OkHttpClient HTTP_CLIENT = new OkHttpClient();
     private static final Gson GSON = new GsonBuilder()
@@ -201,6 +205,7 @@ public final class APIConnector {
     private static JsonElement executeJson(Request request, String operation) {
         for (int attempt = 0; attempt <= MAX_RATE_LIMIT_RETRIES; attempt++) {
             waitForRateLimit(operation);
+            waitForRequestSlot(operation);
 
             try (Response response = HTTP_CLIENT.newCall(request).execute()) {
                 ResponseBody responseBody = response.body();
@@ -261,6 +266,32 @@ public final class APIConnector {
         }
 
         throw new IllegalStateException("Rate limit retry loop completed unexpectedly");
+    }
+
+    private static void waitForRequestSlot(String operation) {
+        synchronized (REQUEST_THROTTLE_LOCK) {
+            while (true) {
+                long now = System.currentTimeMillis();
+                long delayMillis = nextRequestTimeMillis - now;
+                if (delayMillis <= 0) {
+                    nextRequestTimeMillis = now + MIN_REQUEST_INTERVAL_MILLIS;
+                    return;
+                }
+
+                try {
+                    REQUEST_THROTTLE_LOCK.wait(delayMillis);
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    throw new APIException(
+                            503,
+                            "interrupted",
+                            operation + " was interrupted while waiting for the API request buffer",
+                            null,
+                            exception
+                    );
+                }
+            }
+        }
     }
 
     private static void waitForRateLimit(String operation) {

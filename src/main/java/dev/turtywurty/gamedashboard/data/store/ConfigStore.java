@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonParseException;
 import dev.turtywurty.gamedashboard.GameDashboardApp;
 import dev.turtywurty.gamedashboard.data.model.DashboardConfig;
+import dev.turtywurty.gamedashboard.util.OperatingSystem;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -85,12 +86,11 @@ public final class ConfigStore {
         if (!Files.isDirectory(path))
             return path.toString();
 
-        String os = System.getProperty("os.name").toLowerCase();
-        if (os.contains("win"))
-            return path.resolve("steam.exe").toString();
-        if (os.contains("mac"))
-            return path.resolve("Contents").resolve("MacOS").resolve("steam_osx").toString();
-        return path.resolve("steam").toString();
+        return switch (OperatingSystem.CURRENT) {
+            case WINDOWS -> path.resolve("steam.exe").toString();
+            case MACOS -> path.resolve("Contents").resolve("MacOS").resolve("steam_osx").toString();
+            default -> path.resolve("steam").toString();
+        };
     }
 
     private static String normalizeSteamLibraryFolders(

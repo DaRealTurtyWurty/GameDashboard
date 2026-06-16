@@ -1,4 +1,4 @@
-package dev.turtywurty.gamedashboard.data;
+package dev.turtywurty.gamedashboard.data.game.impl;
 
 import dev.turtywurty.gamedashboard.data.game.Game;
 import lombok.*;
@@ -10,7 +10,7 @@ import java.util.Optional;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
-public class SteamGame extends Game {
+public final class SteamGame extends Game {
     private final int steamAppId;
 
     public SteamGame(String title, String description, String executionCommand, int steamAppId, String thumbCoverImageURL, String coverImageURL, String nickname) {
@@ -20,6 +20,7 @@ public class SteamGame extends Game {
 
     public SteamGame(String title, String description, String executionCommand, int steamAppId) {
         super(title, description, executionCommand);
+        this.type = "steam";
         this.steamAppId = steamAppId;
     }
 
@@ -104,7 +105,6 @@ public class SteamGame extends Game {
 
         public SteamGame build() {
             var game = new SteamGame(title, description, executionCommand, steamAppId);
-            game.type = "steam";
             game.setThumbCoverImageURL(thumbCoverImageURL);
             game.setCoverImageURL(coverImageURL);
             game.setNickname(nickname);

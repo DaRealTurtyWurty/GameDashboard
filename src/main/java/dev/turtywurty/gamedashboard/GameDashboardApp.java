@@ -2,6 +2,7 @@ package dev.turtywurty.gamedashboard;
 
 import dev.turtywurty.gamedashboard.data.Database;
 import dev.turtywurty.gamedashboard.preloader.GameDashboardPreloader;
+import dev.turtywurty.gamedashboard.util.OperatingSystem;
 import dev.turtywurty.gamedashboard.view.GameDashboardPane;
 import dev.turtywurty.gamedashboard.view.onboarding.OnboardingPane;
 import io.github.cdimascio.dotenv.Dotenv;
@@ -81,15 +82,11 @@ public class GameDashboardApp extends Application {
     }
 
     private static Path getAppDataDirectory() {
-        String os = System.getProperty("os.name").toLowerCase();
-        if (os.contains("win")) {
-            return Path.of(System.getenv("APPDATA"), "GameDashboard");
-        } else if (os.contains("mac")) {
-            return Path.of(System.getProperty("user.home"), "Library", "Application Support", "GameDashboard");
-        } else if (os.contains("nix") || os.contains("nux")) {
-            return Path.of(System.getProperty("user.home"), ".config", "GameDashboard");
-        }
-
-        return Path.of(System.getProperty("user.dir"), "GameDashboard");
+        return switch (OperatingSystem.getCurrent()) {
+            case WINDOWS -> Path.of(System.getenv("APPDATA"), "GameDashboard");
+            case MACOS -> Path.of(System.getProperty("user.home"), "Library", "Application Support", "GameDashboard");
+            case LINUX -> Path.of(System.getProperty("user.home"), ".config", "GameDashboard");
+            default -> Path.of(System.getProperty("user.dir"), "GameDashboard");
+        };
     }
 }

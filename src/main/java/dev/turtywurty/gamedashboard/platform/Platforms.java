@@ -1,5 +1,6 @@
 package dev.turtywurty.gamedashboard.platform;
 
+import dev.turtywurty.gamedashboard.platform.impl.EpicGamesPlatform;
 import dev.turtywurty.gamedashboard.platform.impl.SteamPlatform;
 
 import java.util.ArrayList;
@@ -13,7 +14,7 @@ public final class Platforms {
 
     static {
         registerPlatform(new SteamPlatform());
-//        registerPlatform(new EpicGamesPlatform());
+        registerPlatform(new EpicGamesPlatform());
 //        registerPlatform(new GOGPlatform());
 //        registerPlatform(new OriginPlatform());
 //        registerPlatform(new UplayPlatform());

@@ -3,6 +3,7 @@ package dev.turtywurty.gamedashboard.platform.impl;
 import dev.turtywurty.gamedashboard.data.Database;
 import dev.turtywurty.gamedashboard.data.SteamHandler;
 import dev.turtywurty.gamedashboard.platform.Platform;
+import dev.turtywurty.gamedashboard.util.OperatingSystem;
 import dev.turtywurty.gamedashboard.util.ProgressMonitor;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -87,7 +88,14 @@ public final class SteamPlatform implements Platform {
         errorLabel.setWrapText(true);
 
         var executableField = new TextField(Database.getInstance().getSteamExecutable());
-        executableField.setPromptText("C:\\Program Files (x86)\\Steam\\steam.exe");
+        executableField.setPromptText(
+                switch (OperatingSystem.getCurrent()) {
+                    case WINDOWS -> "C:\\Program Files (x86)\\Steam\\steam.exe";
+                    case MACOS -> "/Applications/Steam.app/Contents/MacOS/steam_osx";
+                    case LINUX -> "/usr/bin/steam";
+                    default -> "";
+                }
+        );
         HBox.setHgrow(executableField, Priority.ALWAYS);
         var executableCard = createPathCard(
                 "Steam executable",
@@ -98,7 +106,12 @@ public final class SteamPlatform implements Platform {
 
         var libraryFoldersField = new TextField(Database.getInstance().getSteamLibraryFolders());
         libraryFoldersField.setPromptText(
-                "C:\\Program Files (x86)\\Steam\\steamapps\\libraryfolders.vdf"
+                switch (OperatingSystem.getCurrent()) {
+                    case WINDOWS -> "C:\\Program Files (x86)\\Steam\\steamapps\\libraryfolders.vdf";
+                    case MACOS -> "/Applications/Steam.app/Contents/SteamApps/libraryfolders.vdf";
+                    case LINUX -> "/usr/bin/steam/steamapps/libraryfolders.vdf";
+                    default -> "";
+                }
         );
         HBox.setHgrow(libraryFoldersField, Priority.ALWAYS);
         var libraryFoldersCard = createPathCard(

@@ -22,13 +22,11 @@ public class WebUtils {
         }
 
         try {
-            String os = System.getProperty("os.name").toLowerCase();
-            if (os.contains("win")) {
-                new ProcessBuilder("rundll32", "url.dll,FileProtocolHandler", url).start();
-            } else if(os.contains("mac")) {
-                new ProcessBuilder("open", url).start();
-            } else if(os.contains("nix") || os.contains("nux")) {
-                new ProcessBuilder("xdg-open", url).start();
+            switch (OperatingSystem.CURRENT) {
+                case WINDOWS -> new ProcessBuilder("rundll32", "url.dll,FileProtocolHandler", url).start();
+                case MACOS -> new ProcessBuilder("open", url).start();
+                case LINUX -> new ProcessBuilder("xdg-open", url).start();
+                default -> throw new UnsupportedOperationException("Unsupported operating system: " + OperatingSystem.CURRENT);
             }
 
             return;
