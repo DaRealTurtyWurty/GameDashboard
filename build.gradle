@@ -1,9 +1,9 @@
 plugins {
     id 'java'
     id 'application'
-    id 'org.javamodularity.moduleplugin' version '1.8.12'
-    id 'org.openjfx.javafxplugin' version '0.0.13'
-    id 'org.beryx.jlink' version '2.25.0'
+    id 'org.javamodularity.moduleplugin' version '2.0.1'
+    id 'org.openjfx.javafxplugin' version '0.1.0'
+    id 'org.beryx.jlink' version '4.0.2'
 }
 
 group 'dev.turtywurty.gamedashboard'
@@ -13,8 +13,11 @@ repositories {
     mavenCentral()
 }
 
-sourceCompatibility = '21'
-targetCompatibility = '21'
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
@@ -26,31 +29,30 @@ application {
 }
 
 javafx {
-    version = '21-ea+24'
+    version = '25.0.3'
     modules = ['javafx.controls', 'javafx.fxml', 'javafx.web', 'javafx.swing']
 }
 
 dependencies {
-    implementation ('eu.hansolo:tilesfx:17.1.17') {
+    implementation ('eu.hansolo:tilesfx:21.0.9') {
         exclude(group: 'org.openjfx')
     }
 
-    implementation('io.github.cdimascio:dotenv-java:3.0.0')
-    implementation('com.squareup.okhttp3:okhttp:4.12.0')
-    implementation('com.google.code.gson:gson:2.10.1')
-    implementation('com.twelvemonkeys.imageio:imageio-webp:3.12.0')
-    implementation('net.harawata:appdirs:1.2.2')
+    implementation('io.github.cdimascio:dotenv-java:3.2.0')
+    implementation('com.squareup.okhttp3:okhttp:5.4.0')
+    implementation('com.google.code.gson:gson:2.14.0')
+    implementation('com.twelvemonkeys.imageio:imageio-webp:3.13.1')
+    implementation('net.harawata:appdirs:1.5.0')
     implementation("org.jabref:mslinks:1.2")
-
     implementation('org.xerial:sqlite-jdbc:3.53.2.0')
 
-    implementation('org.slf4j:slf4j-api:2.0.12')
-    implementation('org.slf4j:slf4j-simple:2.0.13')
+    implementation('org.slf4j:slf4j-api:2.0.18')
+    implementation('org.slf4j:slf4j-simple:2.0.18')
 
-    implementation('org.projectlombok:lombok:1.18.34')
-    annotationProcessor('org.projectlombok:lombok:1.18.34')
+    implementation('org.projectlombok:lombok:1.18.46')
+    annotationProcessor('org.projectlombok:lombok:1.18.46')
 
-    implementation('org.jetbrains:annotations:24.1.0')
+    implementation('org.jetbrains:annotations:26.1.0')
 }
 
 jlink {
