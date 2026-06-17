@@ -328,12 +328,6 @@ public final class EpicGamesPlatform implements Platform {
                 .trim();
     }
 
-    private static String normalizeSearchTitle(String title) {
-        return title == null
-                ? ""
-                : title.replaceAll("[®™©]", "").replaceAll("\\s+", " ").trim();
-    }
-
     private void hideError(Label errorLabel) {
         errorLabel.setManaged(false);
         errorLabel.setVisible(false);

@@ -8,10 +8,13 @@ import javafx.scene.image.WritableImage;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 public class ImageCache {
@@ -49,7 +52,7 @@ public class ImageCache {
                 return image;
             }
 
-            var image = new Image(url, background);
+            var image = loadImage(url, background);
             if (!isUsable(image))
                 return getPlaceholderImage(background);
 
@@ -77,6 +80,49 @@ public class ImageCache {
 
     private static String unscrambleURL(String url) {
         return new String(Base64.getUrlDecoder().decode(url));
+    }
+
+    private static Image loadImage(String url, boolean background) {
+        Image image = null;
+        try {
+            image = new Image(url, background);
+            if (isUsable(image))
+                return image;
+        } catch (RuntimeException exception) {
+            if (!isWebPURL(url))
+                throw exception;
+        }
+
+        if (!isWebPURL(url))
+            return image;
+
+        try {
+            BufferedImage bufferedImage = readWebP(url);
+            if (bufferedImage == null)
+                return image;
+
+            return SwingFXUtils.toFXImage(bufferedImage, null);
+        } catch (IOException | RuntimeException exception) {
+            return image;
+        }
+    }
+
+    private static boolean isWebPURL(String url) {
+        String normalizedURL = url.toLowerCase(Locale.ROOT);
+        int queryStart = normalizedURL.indexOf('?');
+        if (queryStart >= 0) {
+            normalizedURL = normalizedURL.substring(0, queryStart);
+        }
+
+        return normalizedURL.endsWith(".webp");
+    }
+
+    private static BufferedImage readWebP(String url) throws IOException {
+        if (url.startsWith("file:")) {
+            return ImageIO.read(Path.of(URI.create(url)).toFile());
+        }
+
+        return ImageIO.read(new URL(url));
     }
 
     private static boolean isUsable(Image image) {

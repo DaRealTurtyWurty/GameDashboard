@@ -208,6 +208,7 @@ public class GridGameEntry {
         String iconPath = switch (this.game.getType()) {
             case "steam" -> "/images/platforms/steam.png";
             case "epic_games" -> "/images/platforms/epic_games.png";
+            case "gog" -> "/images/platforms/gog.png";
             default -> null;
         };
         if (iconPath == null)
