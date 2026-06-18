@@ -81,6 +81,7 @@ public final class EAAppGame extends Game {
 
         private String thumbCoverImageURL;
         private String coverImageURL;
+        private String coverLogoImageURL;
         private String nickname;
 
         private Builder(
@@ -103,13 +104,18 @@ public final class EAAppGame extends Game {
             return this;
         }
 
+        public Builder coverLogo(String coverLogoImageURL) {
+            this.coverLogoImageURL = coverLogoImageURL;
+            return this;
+        }
+
         public Builder nickname(String nickname) {
             this.nickname = nickname;
             return this;
         }
 
         public EAAppGame build() {
-            return new EAAppGame(
+            EAAppGame game = new EAAppGame(
                     this.title,
                     this.description,
                     this.executionCommand,
@@ -119,6 +125,8 @@ public final class EAAppGame extends Game {
                     this.softwareId,
                     this.installDataPath
             );
+            game.setCoverLogoImageURL(this.coverLogoImageURL);
+            return game;
         }
     }
 }

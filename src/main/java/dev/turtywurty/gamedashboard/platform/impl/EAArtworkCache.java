@@ -92,8 +92,13 @@ final class EAArtworkCache {
                 .max(Comparator.comparingInt(candidate -> candidate.score() + portraitTypeScore(candidate.url())))
                 .map(ScoredUrl::url)
                 .orElse(null);
+        String logo = candidates.stream()
+                .filter(candidate -> isLogoArt(candidate.url()))
+                .max(Comparator.comparingInt(candidate -> candidate.score() + logoTypeScore(candidate.url())))
+                .map(ScoredUrl::url)
+                .orElse(null);
 
-        return new Artwork(resize(square, 300), resize(portrait, 400));
+        return new Artwork(resize(square, 300), resize(portrait, 400), resize(logo, 320));
     }
 
     private static int titleScore(String title, String url) {
@@ -129,6 +134,10 @@ final class EAArtworkCache {
         return lower.contains("packart") && lower.contains("9x16");
     }
 
+    private static boolean isLogoArt(String url) {
+        return url.toLowerCase(Locale.ROOT).contains("keyart-logo");
+    }
+
     private static int squareTypeScore(String url) {
         String lower = url.toLowerCase(Locale.ROOT);
         int score = 0;
@@ -136,13 +145,29 @@ final class EAArtworkCache {
             score += 35;
         if (lower.contains("keyart-1x1"))
             score += 25;
-        if (lower.contains("dlc"))
-            score -= 40;
+        if (lower.contains("base-game") || lower.contains("fullgame"))
+            score += 30;
+        if (isAddOnArt(lower))
+            score -= 100;
         return score;
+    }
+
+    private static boolean isAddOnArt(String lowerUrl) {
+        return lowerUrl.contains("dlc")
+                || lowerUrl.contains("add-on")
+                || lowerUrl.contains("addon")
+                || lowerUrl.contains("currency")
+                || lowerUrl.contains("virtual-currency")
+                || lowerUrl.contains("points-pack");
     }
 
     private static int portraitTypeScore(String url) {
         return url.toLowerCase(Locale.ROOT).contains("fullgame") ? 20 : 0;
+    }
+
+    private static int logoTypeScore(String url) {
+        String lower = url.toLowerCase(Locale.ROOT);
+        return isAddOnArt(lower) ? -100 : 25;
     }
 
     private static String resize(String url, int width) {
@@ -153,9 +178,9 @@ final class EAArtworkCache {
         return base + "?impolicy=dynamic&w=" + width;
     }
 
-    record Artwork(String squareUrl, String portraitUrl) {
+    record Artwork(String squareUrl, String portraitUrl, String logoUrl) {
         boolean isEmpty() {
-            return this.squareUrl == null && this.portraitUrl == null;
+            return this.squareUrl == null && this.portraitUrl == null && this.logoUrl == null;
         }
     }
 

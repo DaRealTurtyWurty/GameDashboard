@@ -95,12 +95,13 @@ public final class EAPlatform implements Platform {
             String thumbnail = firstNonBlank(
                     artwork.squareUrl(),
                     metadata == null ? null : metadata.getThumbCoverURL(),
+                    artwork.portraitUrl(),
                     PLACEHOLDER_COVER_URL
             );
             String cover = firstNonBlank(
+                    artwork.squareUrl(),
                     artwork.portraitUrl(),
                     metadata == null ? null : metadata.getCoverURL(),
-                    artwork.squareUrl(),
                     PLACEHOLDER_COVER_URL
             );
             String description = metadata == null || metadata.getSummary() == null
@@ -115,6 +116,7 @@ public final class EAPlatform implements Platform {
                             installation.installDataPath().toString()
                     )
                     .images(thumbnail, cover)
+                    .coverLogo(artwork.logoUrl())
                     .nickname(installation.title())
                     .build();
 

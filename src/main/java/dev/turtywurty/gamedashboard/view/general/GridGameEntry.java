@@ -194,6 +194,12 @@ public class GridGameEntry {
         container.setMaxSize(TILE_WIDTH, TILE_HEIGHT);
         container.setUserData(this.game);
 
+        Node coverLogo = createCoverLogo();
+        if (coverLogo != null) {
+            container.getChildren().add(coverLogo);
+            StackPane.setAlignment(coverLogo, Pos.CENTER);
+        }
+
         Node platformBadge = createPlatformBadge();
         if (platformBadge != null) {
             container.getChildren().add(platformBadge);
@@ -202,6 +208,20 @@ public class GridGameEntry {
         }
 
         return container;
+    }
+
+    private Node createCoverLogo() {
+        String logoUrl = this.game.getCoverLogoImageURL();
+        if (logoUrl == null || logoUrl.isBlank())
+            return null;
+
+        var logo = new ImageView(ImageCache.getImage(logoUrl));
+        logo.setFitWidth(TILE_WIDTH * 0.82);
+        logo.setFitHeight(TILE_HEIGHT * 0.35);
+        logo.setPreserveRatio(true);
+        logo.setSmooth(true);
+        logo.setMouseTransparent(true);
+        return logo;
     }
 
     private Node createPlatformBadge() {

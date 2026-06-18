@@ -1,6 +1,8 @@
 package dev.turtywurty.gamedashboard.data.game;
 
-import lombok.*;
+import lombok.Data;
+import lombok.Setter;
+import lombok.AccessLevel;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
@@ -9,8 +11,6 @@ import java.util.Locale;
 import java.util.Optional;
 
 @Data
-@AllArgsConstructor
-@RequiredArgsConstructor
 public class Game {
     protected final String title;
     protected final String description;
@@ -18,9 +18,32 @@ public class Game {
 
     protected String thumbCoverImageURL;
     protected String coverImageURL;
+    protected String coverLogoImageURL;
     protected String nickname;
     @Setter(AccessLevel.NONE)
     protected String type = "manual";
+
+    public Game(String title, String description, String executionCommand) {
+        this.title = title;
+        this.description = description;
+        this.executionCommand = executionCommand;
+    }
+
+    public Game(
+            String title,
+            String description,
+            String executionCommand,
+            String thumbCoverImageURL,
+            String coverImageURL,
+            String nickname,
+            String type
+    ) {
+        this(title, description, executionCommand);
+        this.thumbCoverImageURL = thumbCoverImageURL;
+        this.coverImageURL = coverImageURL;
+        this.nickname = nickname;
+        this.type = type;
+    }
 
     public Process launch() throws IOException {
         return Runtime.getRuntime().exec(this.executionCommand);
