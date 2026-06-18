@@ -86,7 +86,7 @@ public class GridGameEntry {
             try {
                 List<ProcessHandle> processes = ProcessHandle.allProcesses().toList();
 
-                Runtime.getRuntime().exec(command);
+                game.launch();
 
                 // iconify
                 Stage stage = ((Stage) getTile().getScene().getWindow());
@@ -209,6 +209,7 @@ public class GridGameEntry {
             case "steam" -> "/images/platforms/steam.png";
             case "epic_games" -> "/images/platforms/epic_games.png";
             case "gog" -> "/images/platforms/gog.png";
+            case "ea_app" -> "/images/platforms/ea_app.png";
             default -> null;
         };
         if (iconPath == null)

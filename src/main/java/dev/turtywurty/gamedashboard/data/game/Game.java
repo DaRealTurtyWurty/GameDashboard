@@ -3,6 +3,7 @@ package dev.turtywurty.gamedashboard.data.game;
 import lombok.*;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -20,6 +21,10 @@ public class Game {
     protected String nickname;
     @Setter(AccessLevel.NONE)
     protected String type = "manual";
+
+    public Process launch() throws IOException {
+        return Runtime.getRuntime().exec(this.executionCommand);
+    }
 
     public boolean matches(@Nullable Game game) {
         if (game == null)
