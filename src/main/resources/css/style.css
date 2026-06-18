@@ -682,7 +682,25 @@
 }
 
 .platform-discovery-progress {
-    -fx-pref-height: 8;
+    -fx-min-height: 12;
+    -fx-pref-height: 12;
+    -fx-max-height: 12;
+}
+
+.platform-discovery-progress > .track {
+    -fx-background-color: #111119;
+    -fx-background-radius: 7;
+    -fx-background-insets: 0;
+    -fx-border-color: #626274;
+    -fx-border-radius: 7;
+    -fx-border-width: 1;
+}
+
+.platform-discovery-progress > .bar {
+    -fx-background-color: linear-gradient(to right, #7c5cff, #25c2a0);
+    -fx-background-radius: 7;
+    -fx-background-insets: 1;
+    -fx-padding: 0;
 }
 
 .platform-discovery-status {

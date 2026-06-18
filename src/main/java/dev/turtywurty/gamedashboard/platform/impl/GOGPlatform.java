@@ -30,7 +30,6 @@ import java.nio.file.Path;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -87,9 +86,9 @@ public final class GOGPlatform implements Platform {
     @Override
     public Consumer<ProgressMonitor> performDiscovery() {
         return progressMonitor -> {
+            progressMonitor.start("Finding GOG installation", 1);
             Path databasePath = getDefaultDatabasePath();
             if (databasePath == null || !isValidDatabaseFile(databasePath)) {
-                progressMonitor.start("Finding GOG installation", 0);
                 progressMonitor.done();
                 return;
             }
@@ -100,7 +99,6 @@ public final class GOGPlatform implements Platform {
 
     private static void addGOGGames(ProgressMonitor progressMonitor, Path databasePath) {
         if (!isValidDatabaseFile(databasePath)) {
-            progressMonitor.start("Finding GOG installation", 0);
             progressMonitor.done();
             return;
         }
@@ -123,7 +121,13 @@ public final class GOGPlatform implements Platform {
             return;
         }
 
-        progressMonitor.start("Finding GOG games", products.size());
+        progressMonitor.worked(1);
+        if (products.isEmpty()) {
+            progressMonitor.done();
+            return;
+        }
+
+        progressMonitor.start("Loading GOG games", products.size());
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             for (GOGProduct product : products) {
                 executor.submit(() -> addGOGGame(progressMonitor, product));
@@ -467,52 +471,16 @@ public final class GOGPlatform implements Platform {
     }
 
     private static APIConnector.GameResult searchGame(String title) {
-        List<APIConnector.GameResult> results = APIConnector.search(title, true, true).join();
-        APIConnector.GameResult exactMatch = findExactTitleMatch(title, results);
-        if (exactMatch != null)
-            return exactMatch;
-
-        String normalizedTitle = normalizeSearchTitleForQuery(title);
-        if (normalizedTitle.equals(title))
-            return null;
-
-        results = APIConnector.search(normalizedTitle, true, true).join();
-        exactMatch = findExactTitleMatch(title, results);
-        if (exactMatch == null) {
+        APIConnector.GameResult result = APIConnector.findBestFuzzyGameMatch(title, true, true)
+                .join()
+                .gameResult();
+        if (result == null) {
             GameDashboardApp.LOGGER.warn(
-                    "No exact metadata match found for GOG title '{}'; using placeholder metadata",
+                    "No confident metadata match found for GOG title '{}'; using placeholder metadata",
                     title
             );
         }
 
-        return exactMatch;
-    }
-
-    private static APIConnector.GameResult findExactTitleMatch(String title, List<APIConnector.GameResult> results) {
-        String normalizedTitle = normalizeTitleForComparison(title);
-        return results.stream()
-                .filter(result -> normalizeTitleForComparison(result.getName()).equals(normalizedTitle))
-                .findFirst()
-                .orElse(null);
-    }
-
-    private static String normalizeSearchTitleForQuery(String title) {
-        if (title == null)
-            return "";
-
-        return title.codePoints()
-                .filter(codePoint -> codePoint != 0x00AE && codePoint != 0x2122 && codePoint != 0x00A9)
-                .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
-                .toString()
-                .replaceAll("\\s+", " ")
-                .trim();
-    }
-
-    private static String normalizeTitleForComparison(String title) {
-        return normalizeSearchTitleForQuery(title)
-                .toLowerCase(Locale.ROOT)
-                .replaceAll("[^a-z0-9]+", " ")
-                .replaceAll("\\s+", " ")
-                .trim();
+        return result;
     }
 }

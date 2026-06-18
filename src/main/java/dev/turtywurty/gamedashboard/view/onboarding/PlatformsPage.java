@@ -101,6 +101,9 @@ public class PlatformsPage extends VBox {
 
             var discoveryProgressBar = new ProgressBar(0);
             discoveryProgressBar.getStyleClass().add("platform-discovery-progress");
+            discoveryProgressBar.setMinHeight(12);
+            discoveryProgressBar.setPrefHeight(12);
+            discoveryProgressBar.setMaxHeight(12);
             discoveryProgressBar.setMaxWidth(Double.MAX_VALUE);
 
             var discoveryStatusLabel = new Label();

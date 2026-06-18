@@ -22,7 +22,11 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
@@ -103,6 +107,268 @@ public final class APIConnector {
 
             return gameResults;
         });
+    }
+
+    public static CompletableFuture<IGDBGameMatcher.MatchResult> findBestFuzzyGameMatch(
+            String title,
+            boolean includeSummary,
+            boolean includeCover
+    ) {
+        return findBestFuzzyGameMatch(title, includeSummary, includeCover, null, null);
+    }
+
+    public static CompletableFuture<GameResult> findBestFastGameMatch(
+            String title,
+            boolean includeSummary,
+            boolean includeCover
+    ) {
+        return CompletableFuture.supplyAsync(() -> {
+            Map<Integer, IGDBGameCandidate> candidatesById = new LinkedHashMap<>();
+            for (String query : generateFastMatchQueries(title)) {
+                List<IGDBGameCandidate> candidates = searchGameCandidates(query, includeSummary, false, 10);
+                for (IGDBGameCandidate candidate : candidates) {
+                    candidatesById.putIfAbsent(candidate.id(), candidate);
+                }
+            }
+
+            IGDBGameMatcher.MatchResult match = IGDBGameMatcher.findBestMatch(
+                    title,
+                    List.copyOf(candidatesById.values())
+            );
+            logFuzzyMatchDebug(title, generateFastMatchQueries(title), match);
+            if (match.winner() == null)
+                return null;
+
+            IGDBGameCandidate candidate = match.winner().candidate();
+            if (includeCover && candidate.coverId() != null) {
+                CoverUrls coverUrls = getCoverUrls(candidate.coverId());
+                if (coverUrls != null) {
+                    return new GameResult(
+                            candidate.name(),
+                            coverUrls.thumbnailUrl(),
+                            coverUrls.coverUrl(),
+                            candidate.summary()
+                    );
+                }
+            }
+
+            if (includeCover && candidate.id() > 0) {
+                GameResult detailedResult = getGameByID(candidate.id(), includeSummary, true).join();
+                if (detailedResult != null)
+                    return detailedResult;
+            }
+
+            return candidate.toGameResult();
+        });
+    }
+
+    public static CompletableFuture<IGDBGameMatcher.MatchResult> findBestFuzzyGameMatch(
+            String title,
+            boolean includeSummary,
+            boolean includeCover,
+            String platform,
+            Integer releaseYear
+    ) {
+        return CompletableFuture.supplyAsync(() -> {
+            List<String> queries = IGDBGameMatcher.generateQueries(title);
+            Map<Integer, IGDBGameCandidate> candidatesById = new LinkedHashMap<>();
+            for (String query : queries) {
+                List<IGDBGameCandidate> candidates = searchGameCandidates(query, includeSummary, false, 15);
+                if (candidates.isEmpty()) {
+                    candidates = search(query, includeSummary, false).join().stream()
+                            .map(APIConnector::createFallbackCandidate)
+                            .toList();
+                }
+
+                for (IGDBGameCandidate candidate : candidates) {
+                    candidatesById.putIfAbsent(candidate.id(), candidate);
+                }
+            }
+
+            IGDBGameMatcher.MatchResult match = IGDBGameMatcher.findBestMatch(
+                    title,
+                    List.copyOf(candidatesById.values()),
+                    platform,
+                    releaseYear
+            );
+            logFuzzyMatchDebug(title, queries, match);
+            if (!includeCover || match.winner() == null || match.winner().candidate().id() <= 0)
+                return addWinnerCoverDetails(match, includeSummary, includeCover);
+
+            GameResult detailedResult = getGameByID(match.winner().candidate().id(), includeSummary, true).join();
+            if (detailedResult == null)
+                return addWinnerCoverDetails(match, includeSummary, includeCover);
+
+            IGDBGameCandidate detailedCandidate = new IGDBGameCandidate(
+                    match.winner().candidate().id(),
+                    detailedResult.getName(),
+                    match.winner().candidate().slug(),
+                    match.winner().candidate().alternativeNames(),
+                    match.winner().candidate().platforms(),
+                    match.winner().candidate().firstReleaseDate(),
+                    match.winner().candidate().category(),
+                    match.winner().candidate().parentGame(),
+                    match.winner().candidate().versionParent(),
+                    match.winner().candidate().coverId(),
+                    detailedResult.getSummary(),
+                    detailedResult.getThumbCoverURL(),
+                    detailedResult.getCoverURL()
+            );
+            return new IGDBGameMatcher.MatchResult(
+                    new IGDBGameMatcher.ScoredCandidate(
+                            detailedCandidate,
+                            match.winner().score(),
+                            match.winner().reasons()
+                    ),
+                    match.ambiguous(),
+                    match.candidates(),
+                    match.reason()
+            );
+        });
+    }
+
+    private static IGDBGameMatcher.MatchResult addWinnerCoverDetails(
+            IGDBGameMatcher.MatchResult match,
+            boolean includeSummary,
+            boolean includeCover
+    ) {
+        if (!includeCover || match.winner() == null || match.winner().candidate().coverId() == null)
+            return match;
+
+        CoverUrls coverUrls = getCoverUrls(match.winner().candidate().coverId());
+        if (coverUrls == null)
+            return match;
+
+        IGDBGameCandidate candidate = match.winner().candidate();
+        IGDBGameCandidate detailedCandidate = new IGDBGameCandidate(
+                candidate.id(),
+                candidate.name(),
+                candidate.slug(),
+                candidate.alternativeNames(),
+                candidate.platforms(),
+                candidate.firstReleaseDate(),
+                candidate.category(),
+                candidate.parentGame(),
+                candidate.versionParent(),
+                candidate.coverId(),
+                includeSummary ? candidate.summary() : null,
+                coverUrls.thumbnailUrl(),
+                coverUrls.coverUrl()
+        );
+        return new IGDBGameMatcher.MatchResult(
+                new IGDBGameMatcher.ScoredCandidate(
+                        detailedCandidate,
+                        match.winner().score(),
+                        match.winner().reasons()
+                ),
+                match.ambiguous(),
+                match.candidates(),
+                match.reason()
+        );
+    }
+
+    private static List<String> generateFastMatchQueries(String title) {
+        IGDBGameMatcher.TitleParts normalizedTitle = IGDBGameMatcher.normalizeTitle(title);
+        LinkedHashSet<String> queries = new LinkedHashSet<>();
+        addSearchQuery(queries, title);
+        addSearchQuery(queries, normalizedTitle.normalized());
+        addSearchQuery(queries, normalizedTitle.normalizedNoAnd());
+        return List.copyOf(queries);
+    }
+
+    private static void addSearchQuery(LinkedHashSet<String> queries, String query) {
+        if (query == null)
+            return;
+
+        String normalizedQuery = query.trim();
+        if (!normalizedQuery.isBlank())
+            queries.add(normalizedQuery);
+    }
+
+    private static List<IGDBGameCandidate> searchGameCandidates(
+            String query,
+            boolean includeSummary,
+            boolean includeCover,
+            int limit
+    ) {
+        HttpUrl searchUrl = urlBuilder("games/search")
+                .addQueryParameter("apiKey", GameDashboardApp.getAPIKey())
+                .addQueryParameter("query", query)
+                .addQueryParameter("fields", gameCandidateFields(includeSummary, includeCover))
+                .addQueryParameter("limit", Integer.toString(limit))
+                .build();
+
+        JsonArray searchResults;
+        try {
+            searchResults = executeJson(new Request.Builder().url(searchUrl).build(), "Search for game candidates")
+                    .getAsJsonArray();
+        } catch (APIException exception) {
+            if (exception.isNotFound())
+                return List.of();
+
+            throw exception;
+        } catch (IllegalStateException exception) {
+            throw invalidResponse("Search for game candidates", "Expected a JSON array", exception);
+        }
+
+        List<IGDBGameCandidate> gameResults = new ArrayList<>();
+        for (JsonElement resultElement : searchResults) {
+            if (!resultElement.isJsonObject())
+                continue;
+
+            JsonObject game = resultElement.getAsJsonObject();
+            Integer id = getOptionalInteger(game, "id");
+            String name = getOptionalString(game, "name");
+            if (name == null)
+                continue;
+            if (id == null)
+                id = fallbackCandidateId(name);
+
+            String summary = includeSummary ? getOptionalString(game, "summary") : null;
+            Integer coverId = getOptionalInteger(game, "cover");
+            CoverUrls coverUrls = includeCover && coverId != null ? getCoverUrls(coverId) : null;
+
+            gameResults.add(new IGDBGameCandidate(
+                    id,
+                    name,
+                    getOptionalString(game, "slug"),
+                    getAlternativeNames(game),
+                    getPlatforms(game),
+                    getOptionalLong(game, "first_release_date"),
+                    getOptionalInteger(game, "category"),
+                    getOptionalInteger(game, "parent_game"),
+                    getOptionalInteger(game, "version_parent"),
+                    coverId,
+                    summary,
+                    coverUrls == null ? PLACEHOLDER_COVER_URL : coverUrls.thumbnailUrl(),
+                    coverUrls == null ? PLACEHOLDER_COVER_URL : coverUrls.coverUrl()
+            ));
+        }
+
+        return gameResults;
+    }
+
+    private static IGDBGameCandidate createFallbackCandidate(GameResult gameResult) {
+        return new IGDBGameCandidate(
+                fallbackCandidateId(gameResult.getName()),
+                gameResult.getName(),
+                null,
+                List.of(),
+                List.of(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                gameResult.getSummary(),
+                gameResult.getThumbCoverURL(),
+                gameResult.getCoverURL()
+        );
+    }
+
+    private static int fallbackCandidateId(String name) {
+        String normalizedName = IGDBGameMatcher.normalizeTitle(name).normalizedNoAnd();
+        return -Math.abs(normalizedName.hashCode());
     }
 
     public static CompletableFuture<Integer> getGameIdFromExternalId(
@@ -423,6 +689,85 @@ public final class APIConnector {
         return String.join(",", fields);
     }
 
+    private static String gameCandidateFields(boolean includeSummary, boolean includeCover) {
+        List<String> fields = new ArrayList<>(List.of(
+                "id",
+                "name",
+                "slug",
+                "alternative_names.name",
+                "platforms.id",
+                "platforms.name",
+                "first_release_date",
+                "category",
+                "parent_game",
+                "version_parent",
+                "cover"
+        ));
+        if (includeSummary)
+            fields.add("summary");
+        if (includeCover)
+            fields.add("cover");
+        return String.join(",", fields);
+    }
+
+    private static List<String> getAlternativeNames(JsonObject game) {
+        JsonArray alternatives = getOptionalArray(game, "alternative_names");
+        if (alternatives == null)
+            return List.of();
+
+        List<String> names = new ArrayList<>();
+        for (JsonElement alternative : alternatives) {
+            if (!alternative.isJsonObject())
+                continue;
+
+            String name = getOptionalString(alternative.getAsJsonObject(), "name");
+            if (name != null && !name.isBlank())
+                names.add(name);
+        }
+
+        return List.copyOf(names);
+    }
+
+    private static List<IGDBPlatform> getPlatforms(JsonObject game) {
+        JsonArray platforms = getOptionalArray(game, "platforms");
+        if (platforms == null)
+            return List.of();
+
+        List<IGDBPlatform> result = new ArrayList<>();
+        for (JsonElement platformElement : platforms) {
+            if (!platformElement.isJsonObject())
+                continue;
+
+            JsonObject platform = platformElement.getAsJsonObject();
+            Integer id = getOptionalInteger(platform, "id");
+            String name = getOptionalString(platform, "name");
+            if (id != null && name != null)
+                result.add(new IGDBPlatform(id, name));
+        }
+
+        return List.copyOf(result);
+    }
+
+    private static void logFuzzyMatchDebug(
+            String title,
+            List<String> queries,
+            IGDBGameMatcher.MatchResult match
+    ) {
+        List<String> topCandidates = match.candidates().stream()
+                .limit(5)
+                .map(candidate -> candidate.candidate().name()
+                        + "=" + String.format(Locale.ROOT, "%.1f", candidate.score())
+                        + " " + candidate.reasons())
+                .toList();
+        GameDashboardApp.LOGGER.info(
+                "IGDB fuzzy match for '{}': queries={}, result={}, topCandidates={}",
+                title,
+                queries,
+                match.reason(),
+                topCandidates
+        );
+    }
+
     private static GameResult createGameResult(String name, String summary, CoverUrls coverUrls) {
         if (coverUrls == null)
             return new GameResult(name, PLACEHOLDER_COVER_URL, PLACEHOLDER_COVER_URL, summary);
@@ -470,6 +815,26 @@ public final class APIConnector {
         } catch (NumberFormatException | UnsupportedOperationException | IllegalStateException exception) {
             return null;
         }
+    }
+
+    private static Long getOptionalLong(JsonObject object, String property) {
+        JsonElement value = object.get(property);
+        if (value == null || value.isJsonNull() || !value.isJsonPrimitive())
+            return null;
+
+        try {
+            return value.getAsLong();
+        } catch (NumberFormatException | UnsupportedOperationException | IllegalStateException exception) {
+            return null;
+        }
+    }
+
+    private static JsonArray getOptionalArray(JsonObject object, String property) {
+        JsonElement value = object.get(property);
+        if (value == null || value.isJsonNull() || !value.isJsonArray())
+            return null;
+
+        return value.getAsJsonArray();
     }
 
     private static String defaultErrorCode(int statusCode) {
@@ -553,5 +918,55 @@ public final class APIConnector {
         private String thumbCoverURL;
         private String coverURL;
         private String summary;
+    }
+
+    public record IGDBPlatform(int id, String name) {
+    }
+
+    public record IGDBGameCandidate(
+            int id,
+            String name,
+            String slug,
+            List<String> alternativeNames,
+            List<IGDBPlatform> platforms,
+            Long firstReleaseDate,
+            Integer category,
+            Integer parentGame,
+            Integer versionParent,
+            Integer coverId,
+            String summary,
+            String thumbCoverURL,
+            String coverURL
+    ) {
+        public Integer releaseYear() {
+            return IGDBGameMatcher.releaseYear(this.firstReleaseDate);
+        }
+
+        public boolean hasPlatform(String platformName) {
+            String normalizedPlatform = IGDBGameMatcher.normalizeTitle(platformName).normalizedNoAnd();
+            return this.platforms.stream()
+                    .map(IGDBPlatform::name)
+                    .map(name -> IGDBGameMatcher.normalizeTitle(name).normalizedNoAnd())
+                    .anyMatch(normalizedPlatform::equals);
+        }
+
+        public boolean looksLikeExpansionOrEdition() {
+            if (this.parentGame != null || this.versionParent != null)
+                return true;
+
+            return this.category != null && switch (this.category) {
+                case 1, 2, 3, 6, 7, 13, 14 -> true;
+                default -> false;
+            };
+        }
+
+        public GameResult toGameResult() {
+            return new GameResult(
+                    this.name,
+                    this.thumbCoverURL == null ? PLACEHOLDER_COVER_URL : this.thumbCoverURL,
+                    this.coverURL == null ? PLACEHOLDER_COVER_URL : this.coverURL,
+                    this.summary
+            );
+        }
     }
 }

@@ -58,9 +58,9 @@ public final class EpicGamesPlatform implements Platform {
     @Override
     public Consumer<ProgressMonitor> performDiscovery() {
         return progressMonitor -> {
+            progressMonitor.start("Finding Epic Games installation", 1);
             Path path = getDefaultManifestsDirectory();
             if (path == null) {
-                progressMonitor.start("Finding Epic Games installation", 0);
                 progressMonitor.done();
                 return;
             }
@@ -71,14 +71,19 @@ public final class EpicGamesPlatform implements Platform {
 
     private static void addEpicGames(ProgressMonitor progressMonitor, Path path) {
         if (!isValidManifestsDirectory(path)) {
-            progressMonitor.start("Finding Epic Games installation", 0);
             progressMonitor.done();
             return;
         }
 
         try (var stream = Files.list(path).filter(EpicGamesPlatform::isManifestFile)) {
             List<Path> files = stream.toList();
-            progressMonitor.start("Finding Epic Games installation", files.size());
+            progressMonitor.worked(1);
+            if (files.isEmpty()) {
+                progressMonitor.done();
+                return;
+            }
+
+            progressMonitor.start("Loading Epic Games games", files.size());
             try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
                 for (Path manifestPath : files) {
                     executor.submit(() -> addEpicGame(progressMonitor, manifestPath));
@@ -279,53 +284,17 @@ public final class EpicGamesPlatform implements Platform {
     }
 
     private static APIConnector.GameResult searchGame(String title) {
-        List<APIConnector.GameResult> results = APIConnector.search(title, true, true).join();
-        APIConnector.GameResult exactMatch = findExactTitleMatch(title, results);
-        if (exactMatch != null)
-            return exactMatch;
-
-        String normalizedTitle = normalizeSearchTitleForQuery(title);
-        if (normalizedTitle.equals(title))
-            return null;
-
-        results = APIConnector.search(normalizedTitle, true, true).join();
-        exactMatch = findExactTitleMatch(title, results);
-        if (exactMatch == null) {
+        APIConnector.GameResult result = APIConnector.findBestFuzzyGameMatch(title, true, true)
+                .join()
+                .gameResult();
+        if (result == null) {
             GameDashboardApp.LOGGER.warn(
-                    "No exact metadata match found for Epic Games title '{}'; using placeholder metadata",
+                    "No confident metadata match found for Epic Games title '{}'; using placeholder metadata",
                     title
             );
         }
 
-        return exactMatch;
-    }
-
-    private static APIConnector.GameResult findExactTitleMatch(String title, List<APIConnector.GameResult> results) {
-        String normalizedTitle = normalizeTitleForComparison(title);
-        return results.stream()
-                .filter(result -> normalizeTitleForComparison(result.getName()).equals(normalizedTitle))
-                .findFirst()
-                .orElse(null);
-    }
-
-    private static String normalizeSearchTitleForQuery(String title) {
-        if (title == null)
-            return "";
-
-        return title.codePoints()
-                .filter(codePoint -> codePoint != 0x00AE && codePoint != 0x2122 && codePoint != 0x00A9)
-                .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
-                .toString()
-                .replaceAll("\\s+", " ")
-                .trim();
-    }
-
-    private static String normalizeTitleForComparison(String title) {
-        return normalizeSearchTitleForQuery(title)
-                .toLowerCase(Locale.ROOT)
-                .replaceAll("[^a-z0-9]+", " ")
-                .replaceAll("\\s+", " ")
-                .trim();
+        return result;
     }
 
     private void hideError(Label errorLabel) {

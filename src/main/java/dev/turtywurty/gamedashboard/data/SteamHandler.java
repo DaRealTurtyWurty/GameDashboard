@@ -5,15 +5,13 @@ import com.google.gson.JsonObject;
 import dev.turtywurty.gamedashboard.GameDashboardApp;
 import dev.turtywurty.gamedashboard.data.game.Game;
 import dev.turtywurty.gamedashboard.data.game.impl.SteamGame;
+import dev.turtywurty.gamedashboard.util.OSUtils;
 import dev.turtywurty.gamedashboard.util.OperatingSystem;
 import dev.turtywurty.gamedashboard.util.ProgressMonitor;
 import dev.turtywurty.gamedashboard.util.VDFtoJson;
 import javafx.application.Platform;
 import javafx.collections.ObservableList;
-import mslinks.ShellLink;
-import mslinks.ShellLinkException;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -22,7 +20,6 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Supplier;
-import java.util.stream.Stream;
 
 public class SteamHandler {
     public static Map<Path, List<Integer>> getLibraryFolderGameMap(Path libraryFoldersPath) {
@@ -224,11 +221,11 @@ public class SteamHandler {
             if (registryPath.isPresent())
                 return registryPath;
 
-            Optional<Path> processPath = findProcessRunningPath("steam.exe", false);
+            Optional<Path> processPath = OSUtils.findProcessRunningPath("steam.exe", false);
             if (processPath.isPresent())
                 return processPath;
 
-            Optional<Path> startMenuPath = findSteamLocationFromStartMenu();
+            Optional<Path> startMenuPath = OSUtils.findLocationFromStartMenu("Steam");
             if (startMenuPath.isPresent())
                 return startMenuPath;
 
@@ -263,13 +260,13 @@ public class SteamHandler {
             if (Files.isRegularFile(steamExecutable))
                 return Optional.of(steamExecutable);
 
-            return findProcessRunningPath("steam", true);
+            return OSUtils.findProcessRunningPath("steam", true);
         } else if (OperatingSystem.CURRENT == OperatingSystem.LINUX) {
-            Optional<Path> commandPath = findCommandPath("steam");
+            Optional<Path> commandPath = OSUtils.findCommandPath("steam");
             if (commandPath.isPresent())
                 return commandPath;
 
-            return findProcessRunningPath("steam", true);
+            return OSUtils.findProcessRunningPath("steam", true);
         }
 
         return Optional.empty();
@@ -319,7 +316,7 @@ public class SteamHandler {
         if (OperatingSystem.CURRENT != OperatingSystem.WINDOWS)
             return Optional.empty();
 
-        String steamPath = readRegistryValue(
+        String steamPath = OSUtils.readRegistryValue(
                 "HKCU\\SOFTWARE\\Valve\\Steam",
                 "SteamPath"
         );
@@ -329,7 +326,7 @@ public class SteamHandler {
                 return Optional.of(path);
         }
 
-        String steamExe = readRegistryValue(
+        String steamExe = OSUtils.readRegistryValue(
                 "HKCU\\SOFTWARE\\Valve\\Steam",
                 "SteamExe"
         );
@@ -342,106 +339,11 @@ public class SteamHandler {
         return Optional.empty();
     }
 
-    private static String readRegistryValue(String key, @Nullable String valueName) {
-        if (OperatingSystem.CURRENT != OperatingSystem.WINDOWS)
-            return null;
-
-        try {
-            Process process = new ProcessBuilder(
-                    "reg",
-                    "query",
-                    key,
-                    valueName != null ? "/v" : "/ve",
-                    valueName != null ? valueName : ""
-            ).start();
-
-            String output = new String(process.getInputStream().readAllBytes());
-            String[] lines = output.split("\n");
-            for (String line : lines) {
-                if (line.contains("REG_SZ") || line.contains("REG_EXPAND_SZ")) {
-                    String[] parts = line.trim().split("\\t");
-                    if (parts.length >= 3)
-                        return parts[parts.length - 1];
-                }
-            }
-        } catch (IOException exception) {
-            GameDashboardApp.LOGGER.error("Failed to read registry value", exception);
-        }
-
-        return null;
-    }
-
-    private static Optional<Path> findProcessRunningPath(String processName, boolean contains) {
-        return ProcessHandle.allProcesses()
-                .map(processHandle -> processHandle.info().command())
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .filter(command -> contains
-                        ? command.contains(processName)
-                        : command.endsWith(processName))
-                .findFirst()
-                .map(Path::of)
-                .filter(Files::isRegularFile);
-    }
-
-    private static Optional<Path> findCommandPath(String command) {
-        try {
-            Process process = new ProcessBuilder("sh", "-c", "command -v " + command).start();
-            String output = new String(process.getInputStream().readAllBytes()).trim();
-            if (process.waitFor() != 0 || output.isEmpty())
-                return Optional.empty();
-
-            Path path = Path.of(output);
-            return Files.isRegularFile(path) ? Optional.of(path) : Optional.empty();
-        } catch (IOException exception) {
-            GameDashboardApp.LOGGER.error("Failed to find command {}", command, exception);
-            return Optional.empty();
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            return Optional.empty();
-        }
-    }
-
-    private static Optional<Path> findSteamLocationFromStartMenu() {
-        if (OperatingSystem.CURRENT != OperatingSystem.WINDOWS)
-            return Optional.empty();
-
-        Path startMenuPath1 = Path.of(System.getenv("APPDATA"), "Microsoft", "Windows", "Start Menu", "Programs", "Steam");
-        Path startMenuPath2 = Path.of(System.getenv("PROGRAMDATA"), "Microsoft", "Windows", "Start Menu", "Programs", "Steam");
-
-        Stream<Path> startMenuPaths = Stream.of(startMenuPath1, startMenuPath2)
-                .filter(Files::exists);
-        return startMenuPaths.flatMap(start -> {
-                    try {
-                        return Files.walk(start);
-                    } catch (IOException exception) {
-                        GameDashboardApp.LOGGER.error("Failed to walk through Start Menu path {}", start, exception);
-                        return Stream.empty();
-                    }
-                })
-                .filter(path -> path.toString().endsWith(".lnk"))
-                .map(SteamHandler::resolveShortcut)
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .filter(Files::isRegularFile)
-                .findFirst();
-    }
-
-    private static Optional<Path> resolveShortcut(Path shortcutPath) {
-        try {
-            return Optional.ofNullable(new ShellLink(shortcutPath).resolveTarget())
-                    .map(Path::of);
-        } catch (IOException | ShellLinkException exception) {
-            GameDashboardApp.LOGGER.error("Failed to resolve shortcut {}", shortcutPath, exception);
-            return Optional.empty();
-        }
-    }
-
     private static Optional<Path> findSteamLocationFromURIProtocol() {
         if (OperatingSystem.CURRENT != OperatingSystem.WINDOWS)
             return Optional.empty();
 
-        String steamURI = readRegistryValue(
+        String steamURI = OSUtils.readRegistryValue(
                 "HKEY_CLASSES_ROOT\\steam\\Shell\\Open\\Command",
                 ""
         );

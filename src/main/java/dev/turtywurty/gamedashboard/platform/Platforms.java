@@ -17,8 +17,7 @@ public final class Platforms {
         registerPlatform(new SteamPlatform());
         registerPlatform(new EpicGamesPlatform());
         registerPlatform(new GOGPlatform());
-//        registerPlatform(new OriginPlatform());
-//        registerPlatform(new UplayPlatform());
+//        registerPlatform(new UbisoftPlatform());
 //        registerPlatform(new BattleNetPlatform());
     }
 
