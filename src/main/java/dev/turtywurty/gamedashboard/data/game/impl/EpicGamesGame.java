@@ -72,6 +72,7 @@ public final class EpicGamesGame extends Game {
 
         private String thumbCoverImageURL;
         private String coverImageURL;
+        private Integer igdbGameId;
         private String nickname;
 
         public Builder(String title, String description, String executionCommand, Path epicManifestPath) {
@@ -97,6 +98,11 @@ public final class EpicGamesGame extends Game {
             return this;
         }
 
+        public Builder igdbGameId(Integer igdbGameId) {
+            this.igdbGameId = igdbGameId;
+            return this;
+        }
+
         public Builder nickname(String nickname) {
             this.nickname = nickname;
             return this;
@@ -106,6 +112,7 @@ public final class EpicGamesGame extends Game {
             var game = new EpicGamesGame(title, description, executionCommand, epicManifestPath);
             game.setThumbCoverImageURL(thumbCoverImageURL);
             game.setCoverImageURL(coverImageURL);
+            game.setIgdbGameId(igdbGameId);
             game.setNickname(nickname);
             return game;
         }

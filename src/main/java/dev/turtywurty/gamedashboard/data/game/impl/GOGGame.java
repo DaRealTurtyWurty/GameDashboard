@@ -49,6 +49,7 @@ public final class GOGGame extends Game {
 
         private String thumbCoverImageURL;
         private String coverImageURL;
+        private Integer igdbGameId;
         private String nickname;
 
         public Builder(String title, String description, String executionCommand, long productId, String url, String slug) {
@@ -76,6 +77,11 @@ public final class GOGGame extends Game {
             return this;
         }
 
+        public Builder igdbGameId(Integer igdbGameId) {
+            this.igdbGameId = igdbGameId;
+            return this;
+        }
+
         public Builder nickname(String nickname) {
             this.nickname = nickname;
             return this;
@@ -85,6 +91,7 @@ public final class GOGGame extends Game {
             var game = new GOGGame(title, description, executionCommand, productId, url, slug);
             game.setThumbCoverImageURL(thumbCoverImageURL);
             game.setCoverImageURL(coverImageURL);
+            game.setIgdbGameId(igdbGameId);
             game.setNickname(nickname);
             return game;
         }

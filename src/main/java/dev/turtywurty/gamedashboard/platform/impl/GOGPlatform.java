@@ -142,9 +142,10 @@ public final class GOGPlatform implements Platform {
             String description = product.description();
             String thumbCoverImageURL = product.thumbCoverImageURL();
             String coverImageURL = product.coverImageURL();
+            APIConnector.GameResult gameResult = null;
 
             if (description == null || description.isBlank() || coverImageURL == null || coverImageURL.isBlank()) {
-                APIConnector.GameResult gameResult = searchGame(product.title());
+                gameResult = searchGame(product.title());
                 if (gameResult != null) {
                     GameDashboardApp.LOGGER.info("Found metadata for GOG title '{}'", product.title());
                 }
@@ -174,6 +175,7 @@ public final class GOGPlatform implements Platform {
                                     ? PLACEHOLDER_COVER_URL
                                     : coverImageURL
                     )
+                    .igdbGameId(gameResult == null ? null : gameResult.getIgdbGameId())
                     .nickname(product.title())
                     .build();
             javafx.application.Platform.runLater(() -> {

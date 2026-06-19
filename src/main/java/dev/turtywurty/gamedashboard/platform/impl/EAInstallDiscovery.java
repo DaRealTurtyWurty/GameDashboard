@@ -2,10 +2,14 @@ package dev.turtywurty.gamedashboard.platform.impl;
 
 import dev.turtywurty.gamedashboard.GameDashboardApp;
 
+import java.io.BufferedInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Year;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -31,6 +35,9 @@ final class EAInstallDiscovery {
             "^\\s{4}(.+?)\\s+REG_[A-Z0-9_]+\\s+(.*)$",
             Pattern.CASE_INSENSITIVE
     );
+    private static final Pattern COPYRIGHT_YEAR = Pattern.compile("(?<!\\d)((?:19|20)\\d{2})(?!\\d)");
+    private static final byte[] LEGAL_COPYRIGHT_KEY = "LegalCopyright".getBytes(StandardCharsets.UTF_16LE);
+    private static final int VERSION_VALUE_BYTES = 512;
     private static final Set<String> EXECUTABLE_EXCLUSIONS = Set.of(
             "cleanup", "unins", "uninstall", "installer", "update", "updater", "crash", "reporter"
     );
@@ -96,6 +103,40 @@ final class EAInstallDiscovery {
                 installLocation,
                 executable
         ));
+    }
+
+    static Optional<Integer> findReleaseYear(Path executable) {
+        if (executable == null || !Files.isRegularFile(executable))
+            return Optional.empty();
+
+        try (InputStream input = new BufferedInputStream(Files.newInputStream(executable))) {
+            int matchedBytes = 0;
+            int value;
+            while ((value = input.read()) >= 0) {
+                if ((byte) value == LEGAL_COPYRIGHT_KEY[matchedBytes]) {
+                    matchedBytes++;
+                    if (matchedBytes == LEGAL_COPYRIGHT_KEY.length)
+                        return findPlausibleYear(input.readNBytes(VERSION_VALUE_BYTES));
+                } else {
+                    matchedBytes = (byte) value == LEGAL_COPYRIGHT_KEY[0] ? 1 : 0;
+                }
+            }
+        } catch (IOException exception) {
+            GameDashboardApp.LOGGER.debug("Unable to read version metadata from {}", executable, exception);
+        }
+        return Optional.empty();
+    }
+
+    private static Optional<Integer> findPlausibleYear(byte[] versionValue) {
+        String value = new String(versionValue, StandardCharsets.UTF_16LE);
+        Matcher matcher = COPYRIGHT_YEAR.matcher(value);
+        if (!matcher.find())
+            return Optional.empty();
+
+        int year = Integer.parseInt(matcher.group(1));
+        return year >= 1970 && year <= Year.now().getValue() + 1
+                ? Optional.of(year)
+                : Optional.empty();
     }
 
     private static List<RegistryEntry> readRegistryEntries() {

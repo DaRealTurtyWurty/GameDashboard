@@ -92,17 +92,18 @@ public final class APIConnector {
                     continue;
 
                 JsonObject game = resultElement.getAsJsonObject();
+                Integer igdbGameId = getOptionalInteger(game, "id");
                 String name = getRequiredString(game, "name", "Search for games");
                 String summary = includeSummary ? getOptionalString(game, "summary") : null;
 
                 if (!includeCover) {
-                    gameResults.add(new GameResult(name, null, null, summary));
+                    gameResults.add(new GameResult(igdbGameId, name, null, null, summary));
                     continue;
                 }
 
                 Integer coverId = getOptionalInteger(game, "cover");
                 CoverUrls coverUrls = coverId == null ? null : getCoverUrls(coverId);
-                gameResults.add(createGameResult(name, summary, coverUrls));
+                gameResults.add(createGameResult(igdbGameId, name, summary, coverUrls));
             }
 
             return gameResults;
@@ -144,6 +145,7 @@ public final class APIConnector {
                 CoverUrls coverUrls = getCoverUrls(candidate.coverId());
                 if (coverUrls != null) {
                     return new GameResult(
+                            firstNonNull(coverUrls.igdbGameId(), realIgdbId(candidate.id())),
                             candidate.name(),
                             coverUrls.thumbnailUrl(),
                             coverUrls.coverUrl(),
@@ -241,7 +243,7 @@ public final class APIConnector {
 
         IGDBGameCandidate candidate = match.winner().candidate();
         IGDBGameCandidate detailedCandidate = new IGDBGameCandidate(
-                candidate.id(),
+                firstNonNull(coverUrls.igdbGameId(), candidate.id()),
                 candidate.name(),
                 candidate.slug(),
                 candidate.alternativeNames(),
@@ -321,8 +323,10 @@ public final class APIConnector {
             String name = getOptionalString(game, "name");
             if (name == null)
                 continue;
+            String slug = getOptionalString(game, "slug");
+            Long firstReleaseDate = getOptionalLong(game, "first_release_date");
             if (id == null)
-                id = fallbackCandidateId(name);
+                id = fallbackCandidateId(name, slug, firstReleaseDate);
 
             String summary = includeSummary ? getOptionalString(game, "summary") : null;
             Integer coverId = getOptionalInteger(game, "cover");
@@ -331,10 +335,10 @@ public final class APIConnector {
             gameResults.add(new IGDBGameCandidate(
                     id,
                     name,
-                    getOptionalString(game, "slug"),
+                    slug,
                     getAlternativeNames(game),
                     getPlatforms(game),
-                    getOptionalLong(game, "first_release_date"),
+                    firstReleaseDate,
                     getOptionalInteger(game, "category"),
                     getOptionalInteger(game, "parent_game"),
                     getOptionalInteger(game, "version_parent"),
@@ -350,7 +354,9 @@ public final class APIConnector {
 
     private static IGDBGameCandidate createFallbackCandidate(GameResult gameResult) {
         return new IGDBGameCandidate(
-                fallbackCandidateId(gameResult.getName()),
+                gameResult.getIgdbGameId() == null
+                        ? fallbackCandidateId(gameResult.getName())
+                        : gameResult.getIgdbGameId(),
                 gameResult.getName(),
                 null,
                 List.of(),
@@ -367,8 +373,13 @@ public final class APIConnector {
     }
 
     private static int fallbackCandidateId(String name) {
+        return fallbackCandidateId(name, null, null);
+    }
+
+    static int fallbackCandidateId(String name, String slug, Long firstReleaseDate) {
         String normalizedName = IGDBGameMatcher.normalizeTitle(name).normalizedNoAnd();
-        return -Math.abs(normalizedName.hashCode());
+        int hash = Objects.hash(normalizedName, slug, firstReleaseDate);
+        return -Math.max(1, hash & Integer.MAX_VALUE);
     }
 
     public static CompletableFuture<Integer> getGameIdFromExternalId(
@@ -436,18 +447,18 @@ public final class APIConnector {
             String name = getRequiredString(game, "name", "Get game by ID");
             String summary = includeSummary ? getOptionalString(game, "summary") : null;
             if (!includeCover)
-                return new GameResult(name, null, null, summary);
+                return new GameResult(id, name, null, null, summary);
 
             Integer coverId = getOptionalInteger(game, "cover");
             CoverUrls coverUrls = coverId == null ? null : getCoverUrls(coverId);
-            return createGameResult(name, summary, coverUrls);
+            return createGameResult(id, name, summary, coverUrls);
         });
     }
 
     private static CoverUrls getCoverUrls(int coverId) {
         HttpUrl coverUrl = urlBuilder("games/cover")
                 .addQueryParameter("apiKey", GameDashboardApp.getAPIKey())
-                .addQueryParameter("fields", "url")
+                .addQueryParameter("fields", "game,url")
                 .addQueryParameter("id", Integer.toString(coverId))
                 .build();
 
@@ -465,7 +476,11 @@ public final class APIConnector {
         }
 
         String thumbnailUrl = getRequiredString(cover, "url", "Get game cover");
-        return new CoverUrls(thumbnailUrl, thumbnailUrl.replace("t_thumb", "t_cover_big"));
+        return new CoverUrls(
+                getOptionalInteger(cover, "game"),
+                thumbnailUrl,
+                thumbnailUrl.replace("t_thumb", "t_cover_big")
+        );
     }
 
     private static JsonElement executeJson(Request request, String operation) {
@@ -681,7 +696,7 @@ public final class APIConnector {
     }
 
     private static String gameFields(boolean includeSummary, boolean includeCover) {
-        List<String> fields = new ArrayList<>(List.of("name"));
+        List<String> fields = new ArrayList<>(List.of("id", "name"));
         if (includeSummary)
             fields.add("summary");
         if (includeCover)
@@ -768,11 +783,23 @@ public final class APIConnector {
         );
     }
 
-    private static GameResult createGameResult(String name, String summary, CoverUrls coverUrls) {
+    private static GameResult createGameResult(
+            Integer igdbGameId,
+            String name,
+            String summary,
+            CoverUrls coverUrls
+    ) {
+        Integer resolvedIgdbGameId = coverUrls == null
+                ? igdbGameId
+                : firstNonNull(igdbGameId, coverUrls.igdbGameId());
         if (coverUrls == null)
-            return new GameResult(name, PLACEHOLDER_COVER_URL, PLACEHOLDER_COVER_URL, summary);
+            return new GameResult(resolvedIgdbGameId, name, PLACEHOLDER_COVER_URL, PLACEHOLDER_COVER_URL, summary);
 
-        return new GameResult(name, coverUrls.thumbnailUrl(), coverUrls.coverUrl(), summary);
+        return new GameResult(resolvedIgdbGameId, name, coverUrls.thumbnailUrl(), coverUrls.coverUrl(), summary);
+    }
+
+    private static <T> T firstNonNull(T first, T fallback) {
+        return first == null ? fallback : first;
     }
 
     private static String getRequiredString(JsonObject object, String property, String operation) {
@@ -849,7 +876,7 @@ public final class APIConnector {
         };
     }
 
-    private record CoverUrls(String thumbnailUrl, String coverUrl) {
+    private record CoverUrls(Integer igdbGameId, String thumbnailUrl, String coverUrl) {
     }
 
     @Getter
@@ -912,12 +939,30 @@ public final class APIConnector {
     }
 
     @Data
-    @AllArgsConstructor
     public static class GameResult {
+        private Integer igdbGameId;
         private String name;
         private String thumbCoverURL;
         private String coverURL;
         private String summary;
+
+        public GameResult(String name, String thumbCoverURL, String coverURL, String summary) {
+            this(null, name, thumbCoverURL, coverURL, summary);
+        }
+
+        public GameResult(
+                Integer igdbGameId,
+                String name,
+                String thumbCoverURL,
+                String coverURL,
+                String summary
+        ) {
+            this.igdbGameId = igdbGameId;
+            this.name = name;
+            this.thumbCoverURL = thumbCoverURL;
+            this.coverURL = coverURL;
+            this.summary = summary;
+        }
     }
 
     public record IGDBPlatform(int id, String name) {
@@ -962,11 +1007,16 @@ public final class APIConnector {
 
         public GameResult toGameResult() {
             return new GameResult(
+                    realIgdbId(this.id),
                     this.name,
                     this.thumbCoverURL == null ? PLACEHOLDER_COVER_URL : this.thumbCoverURL,
                     this.coverURL == null ? PLACEHOLDER_COVER_URL : this.coverURL,
                     this.summary
             );
         }
+    }
+
+    private static Integer realIgdbId(int candidateId) {
+        return candidateId > 0 ? candidateId : null;
     }
 }

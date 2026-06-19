@@ -39,6 +39,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -212,7 +213,8 @@ public class GridGameEntry {
 
     private Node createCoverLogo() {
         String logoUrl = this.game.getCoverLogoImageURL();
-        if (logoUrl == null || logoUrl.isBlank())
+        if (logoUrl == null || logoUrl.isBlank()
+                || !Objects.equals(this.game.getCoverImageURL(), this.game.getThumbCoverImageURL()))
             return null;
 
         var logo = new ImageView(ImageCache.getImage(logoUrl));

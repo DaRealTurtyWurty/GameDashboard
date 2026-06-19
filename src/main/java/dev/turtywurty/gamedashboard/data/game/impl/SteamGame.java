@@ -73,6 +73,7 @@ public final class SteamGame extends Game {
 
         private String thumbCoverImageURL;
         private String coverImageURL;
+        private Integer igdbGameId;
         private String nickname;
 
         public Builder(String title, String description, String executionCommand, int steamAppId) {
@@ -98,6 +99,11 @@ public final class SteamGame extends Game {
             return this;
         }
 
+        public Builder igdbGameId(Integer igdbGameId) {
+            this.igdbGameId = igdbGameId;
+            return this;
+        }
+
         public Builder nickname(String nickname) {
             this.nickname = nickname;
             return this;
@@ -107,6 +113,7 @@ public final class SteamGame extends Game {
             var game = new SteamGame(title, description, executionCommand, steamAppId);
             game.setThumbCoverImageURL(thumbCoverImageURL);
             game.setCoverImageURL(coverImageURL);
+            game.setIgdbGameId(igdbGameId);
             game.setNickname(nickname);
             return game;
         }

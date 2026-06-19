@@ -90,7 +90,7 @@ public final class EAPlatform implements Platform {
     ) {
         try {
             EAArtworkCache.Artwork artwork = artworkCache.find(installation.title());
-            APIConnector.GameResult metadata = findMetadata(installation.title());
+            APIConnector.GameResult metadata = findMetadata(installation);
 
             String thumbnail = firstNonBlank(
                     artwork.squareUrl(),
@@ -98,12 +98,7 @@ public final class EAPlatform implements Platform {
                     artwork.portraitUrl(),
                     PLACEHOLDER_COVER_URL
             );
-            String cover = firstNonBlank(
-                    artwork.squareUrl(),
-                    artwork.portraitUrl(),
-                    metadata == null ? null : metadata.getCoverURL(),
-                    PLACEHOLDER_COVER_URL
-            );
+            String cover = selectCover(artwork, metadata);
             String description = metadata == null || metadata.getSummary() == null
                     ? ""
                     : metadata.getSummary();
@@ -117,6 +112,7 @@ public final class EAPlatform implements Platform {
                     )
                     .images(thumbnail, cover)
                     .coverLogo(artwork.logoUrl())
+                    .igdbGameId(metadata == null ? null : metadata.getIgdbGameId())
                     .nickname(installation.title())
                     .build();
 
@@ -136,11 +132,36 @@ public final class EAPlatform implements Platform {
         }
     }
 
-    private static APIConnector.GameResult findMetadata(String title) {
+    static String selectCover(EAArtworkCache.Artwork artwork, APIConnector.GameResult metadata) {
+        return firstNonBlank(
+                usableMetadataUrl(metadata == null ? null : metadata.getCoverURL()),
+                artwork.squareUrl(),
+                artwork.portraitUrl(),
+                PLACEHOLDER_COVER_URL
+        );
+    }
+
+    private static String usableMetadataUrl(String url) {
+        return PLACEHOLDER_COVER_URL.equals(url) ? null : url;
+    }
+
+    private static APIConnector.GameResult findMetadata(EAInstallDiscovery.EAInstallation installation) {
         try {
-            return APIConnector.findBestFuzzyGameMatch(title, true, true).join().gameResult();
+            Integer releaseYear = EAInstallDiscovery.findReleaseYear(installation.executable()).orElse(null);
+            GameDashboardApp.LOGGER.info(
+                    "IGDB matching EA title '{}' with executable release year {}",
+                    installation.title(),
+                    releaseYear
+            );
+            return APIConnector.findBestFuzzyGameMatch(
+                    installation.title(), true, true, null, releaseYear
+            ).join().gameResult();
         } catch (RuntimeException exception) {
-            GameDashboardApp.LOGGER.warn("Unable to load fallback metadata for EA title '{}'", title, exception);
+            GameDashboardApp.LOGGER.warn(
+                    "Unable to load fallback metadata for EA title '{}'",
+                    installation.title(),
+                    exception
+            );
             return null;
         }
     }

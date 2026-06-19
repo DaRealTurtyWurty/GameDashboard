@@ -112,8 +112,9 @@ public class SteamHandler {
             futures.put(name, () -> {
                 GameDashboardApp.LOGGER.info("Fetching game details for {} (AppID: {})...", name, appId);
                 APIConnector.GameResult gameResult;
+                Integer igdbId;
                 try {
-                    Integer igdbId = APIConnector.getGameIdFromExternalId(
+                    igdbId = APIConnector.getGameIdFromExternalId(
                             APIConnector.ExternalPlatform.STEAM,
                             String.valueOf(appId)
                     ).join();
@@ -143,6 +144,7 @@ public class SteamHandler {
 
                 return SteamGame.builder(name, gameResult.getSummary(), executionCommand, appId)
                         .images(gameResult.getThumbCoverURL(), gameResult.getCoverURL())
+                        .igdbGameId(igdbId)
                         .nickname(name)
                         .build();
             });

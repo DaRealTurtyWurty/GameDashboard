@@ -19,6 +19,7 @@ public class Game {
     protected String thumbCoverImageURL;
     protected String coverImageURL;
     protected String coverLogoImageURL;
+    protected Integer igdbGameId;
     protected String nickname;
     @Setter(AccessLevel.NONE)
     protected String type = "manual";

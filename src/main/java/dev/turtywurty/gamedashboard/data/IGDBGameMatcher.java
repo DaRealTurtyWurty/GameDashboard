@@ -21,7 +21,7 @@ public final class IGDBGameMatcher {
     private static final Set<String> STOP_WORDS = Set.of("the", "a", "an", "of", "for", "to", "in", "on");
     private static final Set<String> EDITION_WORDS = Set.of(
             "edition", "deluxe", "standard", "ultimate", "complete", "collection", "definitive",
-            "remastered", "remaster", "goty", "anniversary", "gold"
+            "remastered", "remaster", "goty", "anniversary", "gold", "bundle"
     );
     private static final List<List<String>> EDITION_PHRASES = List.of(
             List.of("deluxe", "edition"),
@@ -34,7 +34,8 @@ public final class IGDBGameMatcher {
             List.of("goty", "edition"),
             List.of("goty"),
             List.of("remastered"),
-            List.of("remaster")
+            List.of("remaster"),
+            List.of("bundle")
     );
     private static final Map<String, String> ROMAN_NUMERALS = Map.ofEntries(
             Map.entry("i", "1"),
@@ -142,7 +143,10 @@ public final class IGDBGameMatcher {
         List<ScoredCandidate> scoredCandidates = candidates.stream()
                 .filter(Objects::nonNull)
                 .map(candidate -> score(localTitle, candidate, platform, releaseYear))
-                .sorted(Comparator.comparing(ScoredCandidate::score).reversed())
+                .sorted(Comparator.comparing(ScoredCandidate::score)
+                        .reversed()
+                        .thenComparing(candidate -> candidate.candidate().parentGame() != null
+                                || candidate.candidate().versionParent() != null))
                 .toList();
 
         if (scoredCandidates.isEmpty()) {
@@ -150,7 +154,11 @@ public final class IGDBGameMatcher {
         }
 
         ScoredCandidate best = scoredCandidates.getFirst();
-        ScoredCandidate second = scoredCandidates.size() > 1 ? scoredCandidates.get(1) : null;
+        ScoredCandidate second = scoredCandidates.stream()
+                .skip(1)
+                .filter(candidate -> !isEquivalentRelease(best.candidate(), candidate.candidate()))
+                .findFirst()
+                .orElse(null);
         if (best.score() < MATCH_THRESHOLD) {
             return new MatchResult(null, false, scoredCandidates,
                     "Best score " + format(best.score()) + " is below threshold " + format(MATCH_THRESHOLD) + ".");
@@ -163,6 +171,19 @@ public final class IGDBGameMatcher {
 
         return new MatchResult(best, false, scoredCandidates,
                 "Selected '" + best.candidate().name() + "' with score " + format(best.score()) + ".");
+    }
+
+    private static boolean isEquivalentRelease(
+            APIConnector.IGDBGameCandidate first,
+            APIConnector.IGDBGameCandidate second
+    ) {
+        TitleParts firstTitle = normalizeTitle(first.name());
+        TitleParts secondTitle = normalizeTitle(second.name());
+        Integer firstYear = first.releaseYear();
+        return firstYear != null
+                && Objects.equals(firstYear, second.releaseYear())
+                && firstTitle.normalizedNoAnd().equals(secondTitle.normalizedNoAnd())
+                && firstTitle.hadEditionNoise() == secondTitle.hadEditionNoise();
     }
 
     private static ScoredCandidate score(
@@ -196,7 +217,8 @@ public final class IGDBGameMatcher {
         reasons.add("text=" + format(bestTextScore) + " via '" + bestTitle + "'");
 
         TitleParts candidateName = normalizeTitle(candidate.name());
-        if (isExactNormalizedMatch(local, candidateName)) {
+        boolean exactNormalizedMatch = isExactNormalizedMatch(local, candidateName);
+        if (exactNormalizedMatch) {
             score += 14;
             reasons.add("exact normalized title");
         }
@@ -225,9 +247,15 @@ public final class IGDBGameMatcher {
             reasons.add("platform match");
         }
 
-        if (releaseYear != null && Objects.equals(releaseYear, candidate.releaseYear())) {
-            score += 4;
-            reasons.add("release year match");
+        boolean releaseYearMismatch = false;
+        if (releaseYear != null && candidate.releaseYear() != null) {
+            if (Objects.equals(releaseYear, candidate.releaseYear())) {
+                score += 4;
+                reasons.add("release year match");
+            } else {
+                releaseYearMismatch = true;
+                reasons.add("release year mismatch");
+            }
         }
 
         double overlap = tokenOverlap(local.tokensNoAnd(), candidateName.tokensNoAnd());
@@ -243,12 +271,16 @@ public final class IGDBGameMatcher {
 
         boolean localLooksLikeEdition = local.hadEditionNoise();
         boolean candidateLooksLikeEdition = candidate.looksLikeExpansionOrEdition() || candidateName.hadEditionNoise();
-        if (!localLooksLikeEdition && candidateLooksLikeEdition) {
+        boolean exactTitleNamesExpansion = exactNormalizedMatch && !candidateName.hadEditionNoise();
+        if (!exactTitleNamesExpansion && !localLooksLikeEdition && candidateLooksLikeEdition) {
             score = Math.min(score - 20, MATCH_THRESHOLD - 2);
             reasons.add("candidate expansion/edition");
         }
 
-        return new ScoredCandidate(candidate, Math.clamp(score, 0, 100), reasons);
+        double normalizedScore = Math.clamp(score, 0, 100);
+        if (releaseYearMismatch)
+            normalizedScore = Math.max(0, normalizedScore - 5);
+        return new ScoredCandidate(candidate, normalizedScore, reasons);
     }
 
     private static double textScore(TitleParts local, TitleParts candidate) {

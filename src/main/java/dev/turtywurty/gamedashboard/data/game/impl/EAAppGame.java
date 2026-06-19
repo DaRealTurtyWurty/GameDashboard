@@ -82,6 +82,7 @@ public final class EAAppGame extends Game {
         private String thumbCoverImageURL;
         private String coverImageURL;
         private String coverLogoImageURL;
+        private Integer igdbGameId;
         private String nickname;
 
         private Builder(
@@ -109,6 +110,11 @@ public final class EAAppGame extends Game {
             return this;
         }
 
+        public Builder igdbGameId(Integer igdbGameId) {
+            this.igdbGameId = igdbGameId;
+            return this;
+        }
+
         public Builder nickname(String nickname) {
             this.nickname = nickname;
             return this;
@@ -126,6 +132,7 @@ public final class EAAppGame extends Game {
                     this.installDataPath
             );
             game.setCoverLogoImageURL(this.coverLogoImageURL);
+            game.setIgdbGameId(this.igdbGameId);
             return game;
         }
     }

@@ -118,6 +118,7 @@ public final class EpicGamesPlatform implements Platform {
                             result == null ? PLACEHOLDER_COVER_URL : result.getThumbCoverURL(),
                             result == null ? PLACEHOLDER_COVER_URL : result.getCoverURL()
                     )
+                    .igdbGameId(result == null ? null : result.getIgdbGameId())
                     .nickname(title)
                     .build();
             javafx.application.Platform.runLater(() -> Database.getInstance().addGame(game));
