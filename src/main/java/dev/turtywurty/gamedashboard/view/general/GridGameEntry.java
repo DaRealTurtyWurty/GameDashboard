@@ -1,5 +1,6 @@
 package dev.turtywurty.gamedashboard.view.general;
 
+import dev.turtywurty.gamedashboard.GameDashboardApp;
 import dev.turtywurty.gamedashboard.data.game.Game;
 import dev.turtywurty.gamedashboard.util.ImageCache;
 import dev.turtywurty.gamedashboard.util.Utils;
@@ -118,7 +119,7 @@ public class GridGameEntry {
                             return;
                         }
 
-                        System.out.println("Processes: " + newProcesses.stream()
+                        GameDashboardApp.LOGGER.debug("Processes: {}", newProcesses.stream()
                                 .map(process -> process.info().command().orElse(""))
                                 .collect(Collectors.joining(", ")));
 

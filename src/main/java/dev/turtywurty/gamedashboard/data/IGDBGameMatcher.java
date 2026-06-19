@@ -240,6 +240,9 @@ public final class IGDBGameMatcher {
                 score -= 18;
                 reasons.add("missing number");
             }
+        } else if (!candidateNumbers.isEmpty()) {
+            score -= 18;
+            reasons.add("unexpected number");
         }
 
         if (platform != null && !platform.isBlank() && candidate.hasPlatform(platform)) {

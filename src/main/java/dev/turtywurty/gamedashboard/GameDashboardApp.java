@@ -21,6 +21,11 @@ import java.util.Optional;
 
 public class GameDashboardApp extends Application {
     public static final String STYLESHEET = "/css/style.css";
+    public static final Path APP_DATA_PATH = getAppDataDirectory();
+
+    static {
+        System.setProperty("gamedashboard.log.dir", APP_DATA_PATH.resolve("logs").toString());
+    }
 
     private static final Dotenv ENVIRONMENT = Dotenv.configure()
             .directory("./env")
@@ -70,8 +75,6 @@ public class GameDashboardApp extends Application {
         return Optional.ofNullable(ENVIRONMENT.get("API_KEY", null))
                 .orElseThrow(() -> new RuntimeException("API key not found"));
     }
-
-    public static final Path APP_DATA_PATH = getAppDataDirectory();
 
     public static void applyStylesheet(Scene scene) {
         scene.getStylesheets().add(GameDashboardApp.class.getResource(STYLESHEET).toExternalForm());
