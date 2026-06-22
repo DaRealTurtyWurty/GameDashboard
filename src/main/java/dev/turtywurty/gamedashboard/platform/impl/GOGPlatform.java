@@ -6,31 +6,22 @@ import dev.turtywurty.gamedashboard.GameDashboardApp;
 import dev.turtywurty.gamedashboard.data.APIConnector;
 import dev.turtywurty.gamedashboard.data.Database;
 import dev.turtywurty.gamedashboard.data.game.impl.GOGGame;
+import dev.turtywurty.gamedashboard.platform.ManualEntryForm;
 import dev.turtywurty.gamedashboard.platform.Platform;
 import dev.turtywurty.gamedashboard.util.OperatingSystem;
 import dev.turtywurty.gamedashboard.util.ProgressMonitor;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.InvalidPathException;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
@@ -62,40 +53,6 @@ public final class GOGPlatform implements Platform {
             LEFT JOIN PlayTaskLaunchParameters launchParameters
                 ON launchParameters.playTaskId = playTasks.id
             """;
-
-    @Override
-    public Image getIcon() {
-        return new Image(getClass().getResource("/images/platforms/gog.png").toExternalForm());
-    }
-
-    @Override
-    public String getName() {
-        return "GOG";
-    }
-
-    @Override
-    public String getWebsite() {
-        return "https://www.gog.com/";
-    }
-
-    @Override
-    public String getDescription() {
-        return "GOG.com (formerly Good Old Games) is a digital distribution platform and online store for video games and films, known for offering DRM-free content and a wide selection of classic and indie titles.";
-    }
-
-    @Override
-    public Consumer<ProgressMonitor> performDiscovery() {
-        return progressMonitor -> {
-            progressMonitor.start("Finding GOG installation", 1);
-            Path databasePath = getDefaultDatabasePath();
-            if (databasePath == null || !isValidDatabaseFile(databasePath)) {
-                progressMonitor.done();
-                return;
-            }
-
-            addGOGGames(progressMonitor, databasePath);
-        };
-    }
 
     private static void addGOGGames(ProgressMonitor progressMonitor, Path databasePath) {
         if (!isValidDatabaseFile(databasePath)) {
@@ -328,96 +285,6 @@ public final class GOGPlatform implements Platform {
         return null;
     }
 
-    @Override
-    public ManualEntryView createManualEntryView() {
-        var description = new Label(
-                "Choose the GOG Galaxy database used to find your GOG library.");
-        description.getStyleClass().add("dialog-description");
-        description.setWrapText(true);
-
-        var header = new VBox(description);
-        header.getStyleClass().add("dialog-header");
-
-        var errorLabel = new Label();
-        errorLabel.getStyleClass().add("error-label");
-        errorLabel.setWrapText(true);
-
-        Path defaultDatabasePath = getDefaultDatabasePath();
-        var databaseField = new TextField(
-                defaultDatabasePath != null && isValidDatabaseFile(defaultDatabasePath)
-                        ? defaultDatabasePath.toString()
-                        : ""
-        );
-        databaseField.setPromptText(defaultDatabasePath == null ? "" : defaultDatabasePath.toString());
-        HBox.setHgrow(databaseField, Priority.ALWAYS);
-        var databaseCard = createPathCard(
-                "GOG Galaxy database",
-                databaseField,
-                "Select GOG Galaxy Database",
-                () -> chooseDatabase(databaseField, errorLabel)
-        );
-
-        hideError(errorLabel);
-
-        var content = new VBox(header, databaseCard, errorLabel);
-        content.getStyleClass().add("gog-configuration-content");
-        VBox.setMargin(databaseCard, new Insets(8, 0, 0, 0));
-
-        return new ManualEntryView(content, progressMonitor -> {
-            String databasePath = databaseField.getText();
-            if (!isValidDatabaseFile(databasePath)) {
-                showError(errorLabel, "Select a valid GOG Galaxy database.");
-                return;
-            }
-
-            hideError(errorLabel);
-            CompletableFuture.runAsync(() -> addGOGGames(progressMonitor, Path.of(databasePath)))
-                    .exceptionally(throwable -> {
-                        progressMonitor.done();
-                        return null;
-                    });
-        });
-    }
-
-    private VBox createPathCard(String labelText, TextField field, String chooserTitle, Runnable browseAction) {
-        var label = new Label(labelText);
-        label.getStyleClass().add("field-label");
-
-        var browseButton = new Button("Browse");
-        browseButton.getStyleClass().add("browse-button");
-        browseButton.setAccessibleText(chooserTitle);
-        browseButton.setOnAction(event -> browseAction.run());
-
-        var row = new HBox(field, browseButton);
-        row.getStyleClass().add("gog-location-row");
-        row.setAlignment(Pos.CENTER_LEFT);
-
-        var card = new VBox(label, row);
-        card.getStyleClass().add("gog-location-card");
-        return card;
-    }
-
-    private void chooseDatabase(TextField databaseField, Label errorLabel) {
-        var chooser = new FileChooser();
-        chooser.setTitle("Select GOG Galaxy Database");
-        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("SQLite Database", "galaxy-2.0.db", "*.db"));
-
-        String currentPath = databaseField.getText();
-        File currentFile = currentPath == null || currentPath.isBlank() ? null : new File(currentPath);
-        File initialDirectory = currentFile != null && currentFile.getParentFile() != null
-                ? currentFile.getParentFile()
-                : new File(System.getProperty("user.home"));
-        if (initialDirectory.isDirectory()) {
-            chooser.setInitialDirectory(initialDirectory);
-        }
-
-        File selectedFile = chooser.showOpenDialog(databaseField.getScene().getWindow());
-        if (selectedFile != null) {
-            databaseField.setText(selectedFile.getAbsolutePath());
-            hideError(errorLabel);
-        }
-    }
-
     private static @Nullable Path getDefaultDatabasePath() {
         return switch (OperatingSystem.getCurrent()) {
             case WINDOWS -> Path.of(getProgramDataPath(), "GOG.com", "Galaxy", "storage", "galaxy-2.0.db");
@@ -449,29 +316,6 @@ public final class GOGPlatform implements Platform {
         return Files.isRegularFile(databasePath);
     }
 
-    private void hideError(Label errorLabel) {
-        errorLabel.setManaged(false);
-        errorLabel.setVisible(false);
-    }
-
-    private void showError(Label errorLabel, String message) {
-        errorLabel.setText(message);
-        errorLabel.setManaged(true);
-        errorLabel.setVisible(true);
-    }
-
-    private record GOGProduct(
-            long productId,
-            String title,
-            @Nullable String description,
-            @Nullable String executionCommand,
-            @Nullable String thumbCoverImageURL,
-            @Nullable String coverImageURL,
-            @Nullable String url,
-            @Nullable String slug
-    ) {
-    }
-
     private static APIConnector.GameResult searchGame(String title) {
         APIConnector.GameResult result = APIConnector.findBestFuzzyGameMatch(title, true, true)
                 .join()
@@ -484,5 +328,80 @@ public final class GOGPlatform implements Platform {
         }
 
         return result;
+    }
+
+    @Override
+    public Image getIcon() {
+        return new Image(getClass().getResource("/images/platforms/gog.png").toExternalForm());
+    }
+
+    @Override
+    public String getName() {
+        return "GOG";
+    }
+
+    @Override
+    public String getWebsite() {
+        return "https://www.gog.com/";
+    }
+
+    @Override
+    public String getDescription() {
+        return "GOG.com (formerly Good Old Games) is a digital distribution platform and online store for video games and films, known for offering DRM-free content and a wide selection of classic and indie titles.";
+    }
+
+    @Override
+    public Consumer<ProgressMonitor> performDiscovery() {
+        return progressMonitor -> {
+            progressMonitor.start("Finding GOG installation", 1);
+            Path databasePath = getDefaultDatabasePath();
+            if (databasePath == null || !isValidDatabaseFile(databasePath)) {
+                progressMonitor.done();
+                return;
+            }
+
+            addGOGGames(progressMonitor, databasePath);
+        };
+    }
+
+    @Override
+    public ManualEntryView createManualEntryView() {
+        var form = new ManualEntryForm(
+                "Choose the GOG Galaxy database used to find your GOG library.",
+                "gog",
+                true,
+                0
+        );
+
+        Path defaultDatabasePath = getDefaultDatabasePath();
+        var databaseField = form.addFileField(
+                "GOG Galaxy database",
+                defaultDatabasePath != null && isValidDatabaseFile(defaultDatabasePath)
+                        ? defaultDatabasePath.toString() : "",
+                defaultDatabasePath == null ? "" : defaultDatabasePath.toString(),
+                "Select GOG Galaxy Database",
+                new FileChooser.ExtensionFilter("SQLite Database", "galaxy-2.0.db", "*.db")
+        );
+
+        return form.build(progressMonitor -> {
+            String databasePath = databaseField.getText();
+            if (!form.validate(databaseField, GOGPlatform::isValidDatabaseFile, "Select a valid GOG Galaxy database."))
+                return;
+
+            form.hideError();
+            ManualEntryForm.runAsync(progressMonitor, () -> addGOGGames(progressMonitor, Path.of(databasePath)));
+        });
+    }
+
+    private record GOGProduct(
+            long productId,
+            String title,
+            @Nullable String description,
+            @Nullable String executionCommand,
+            @Nullable String thumbCoverImageURL,
+            @Nullable String coverImageURL,
+            @Nullable String url,
+            @Nullable String slug
+    ) {
     }
 }

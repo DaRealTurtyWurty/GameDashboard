@@ -9,18 +9,29 @@ import mslinks.ShellLinkException;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 public final class OSUtils {
     private static final Gson GSON = new Gson();
+    private static final Pattern REGISTRY_VALUE = Pattern.compile(
+            "^\\s{4}(.+?)\\s+REG_[A-Z0-9_]+\\s+(.*)$",
+            Pattern.CASE_INSENSITIVE
+    );
 
     private OSUtils() {
         throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
@@ -101,6 +112,75 @@ public final class OSUtils {
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             return List.of();
+        }
+    }
+
+    public static List<RegistryEntry> readRegistryEntries(String key, boolean recursive) {
+        if (OperatingSystem.CURRENT != OperatingSystem.WINDOWS)
+            return List.of();
+
+        try {
+            List<String> command = new ArrayList<>(List.of("reg.exe", "query", key));
+            if (recursive)
+                command.add("/s");
+
+            Process process = new ProcessBuilder(command)
+                    .redirectErrorStream(true)
+                    .start();
+            String output = new String(process.getInputStream().readAllBytes(), nativeCharset());
+            return process.waitFor() == 0 ? parseRegistryOutput(output) : List.of();
+        } catch (IOException exception) {
+            GameDashboardApp.LOGGER.debug("Unable to query registry key {}", key, exception);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+        }
+        return List.of();
+    }
+
+    public static List<RegistryEntry> parseRegistryOutput(String output) {
+        if (output == null || output.isBlank())
+            return List.of();
+
+        List<RegistryEntry> entries = new ArrayList<>();
+        String currentKey = null;
+        Map<String, String> currentValues = new LinkedHashMap<>();
+        for (String line : output.lines().toList()) {
+            if (line.startsWith("HKEY_")) {
+                if (currentKey != null)
+                    entries.add(new RegistryEntry(currentKey, currentValues));
+                currentKey = line.trim();
+                currentValues = new LinkedHashMap<>();
+                continue;
+            }
+
+            Matcher matcher = REGISTRY_VALUE.matcher(line);
+            if (currentKey != null && matcher.matches())
+                currentValues.put(matcher.group(1).trim().toLowerCase(Locale.ROOT), matcher.group(2).trim());
+        }
+        if (currentKey != null)
+            entries.add(new RegistryEntry(currentKey, currentValues));
+        return List.copyOf(entries);
+    }
+
+    private static Charset nativeCharset() {
+        String nativeEncoding = System.getProperty("native.encoding");
+        return nativeEncoding == null || nativeEncoding.isBlank()
+                ? Charset.defaultCharset()
+                : Charset.forName(nativeEncoding);
+    }
+
+    public record RegistryEntry(String key, Map<String, String> values) {
+        public RegistryEntry {
+            values = new HashMap<>(values);
+        }
+
+        public String value(String name) {
+            return values.get(name.toLowerCase(Locale.ROOT));
+        }
+
+        public String keyName() {
+            int separator = key.lastIndexOf('\\');
+            return separator < 0 ? key : key.substring(separator + 1);
         }
     }
 

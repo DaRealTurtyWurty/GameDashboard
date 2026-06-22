@@ -4,6 +4,7 @@ import dev.turtywurty.gamedashboard.platform.impl.EpicGamesPlatform;
 import dev.turtywurty.gamedashboard.platform.impl.EAPlatform;
 import dev.turtywurty.gamedashboard.platform.impl.GOGPlatform;
 import dev.turtywurty.gamedashboard.platform.impl.SteamPlatform;
+import dev.turtywurty.gamedashboard.platform.impl.UbisoftPlatform;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,7 +20,7 @@ public final class Platforms {
         registerPlatform(new EpicGamesPlatform());
         registerPlatform(new EAPlatform());
         registerPlatform(new GOGPlatform());
-//        registerPlatform(new UbisoftPlatform());
+        registerPlatform(new UbisoftPlatform());
 //        registerPlatform(new BattleNetPlatform());
     }
 

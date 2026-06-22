@@ -6,27 +6,17 @@ import dev.turtywurty.gamedashboard.GameDashboardApp;
 import dev.turtywurty.gamedashboard.data.APIConnector;
 import dev.turtywurty.gamedashboard.data.Database;
 import dev.turtywurty.gamedashboard.data.game.impl.EpicGamesGame;
+import dev.turtywurty.gamedashboard.platform.ManualEntryForm;
 import dev.turtywurty.gamedashboard.platform.Platform;
 import dev.turtywurty.gamedashboard.util.OperatingSystem;
 import dev.turtywurty.gamedashboard.util.ProgressMonitor;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.VBox;
-import javafx.stage.DirectoryChooser;
 
-import java.io.File;
-import java.nio.file.InvalidPathException;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
@@ -34,40 +24,6 @@ import java.util.function.Consumer;
 public final class EpicGamesPlatform implements Platform {
     private static final Gson GSON = new Gson();
     private static final String PLACEHOLDER_COVER_URL = "https://fakeimg.pl/35x35";
-
-    @Override
-    public Image getIcon() {
-        return new Image(getClass().getResource("/images/platforms/epic_games.png").toExternalForm());
-    }
-
-    @Override
-    public String getName() {
-        return "Epic Games";
-    }
-
-    @Override
-    public String getWebsite() {
-        return "https://www.epicgames.com/store/en-US/";
-    }
-
-    @Override
-    public String getDescription() {
-        return "Epic Games is a digital distribution platform and game development company known for its popular games, including Fortnite, and the Unreal Engine, a widely used game development engine.";
-    }
-
-    @Override
-    public Consumer<ProgressMonitor> performDiscovery() {
-        return progressMonitor -> {
-            progressMonitor.start("Finding Epic Games installation", 1);
-            Path path = getDefaultManifestsDirectory();
-            if (path == null) {
-                progressMonitor.done();
-                return;
-            }
-
-            addEpicGames(progressMonitor, path);
-        };
-    }
 
     private static void addEpicGames(ProgressMonitor progressMonitor, Path path) {
         if (!isValidManifestsDirectory(path)) {
@@ -129,99 +85,9 @@ public final class EpicGamesPlatform implements Platform {
         }
     }
 
-    @Override
-    public ManualEntryView createManualEntryView() {
-        var description = new Label(
-                "Choose the Epic Games manifests directory used to find your Epic Games library.");
-        description.getStyleClass().add("dialog-description");
-        description.setWrapText(true);
-
-        var header = new VBox(description);
-        header.getStyleClass().add("dialog-header");
-
-        var errorLabel = new Label();
-        errorLabel.getStyleClass().add("error-label");
-        errorLabel.setWrapText(true);
-
-        Path defaultManifestsDirectory = getDefaultManifestsDirectory();
-        var manifestsDirectoryField = new TextField(
-                defaultManifestsDirectory != null && isValidManifestsDirectory(defaultManifestsDirectory)
-                        ? defaultManifestsDirectory.toString()
-                        : ""
-        );
-        manifestsDirectoryField.setPromptText(defaultManifestsDirectory == null ? "" : defaultManifestsDirectory.toString());
-        HBox.setHgrow(manifestsDirectoryField, Priority.ALWAYS);
-        var manifestsDirectoryCard = createPathCard(
-                "Epic Games manifests directory",
-                manifestsDirectoryField,
-                "Select Epic Games Manifests Directory",
-                () -> chooseManifestsDirectory(manifestsDirectoryField, errorLabel)
-        );
-
-        hideError(errorLabel);
-
-        var content = new VBox(header, manifestsDirectoryCard, errorLabel);
-        content.getStyleClass().add("epic-games-configuration-content");
-        VBox.setMargin(manifestsDirectoryCard, new Insets(8, 0, 0, 0));
-
-        return new ManualEntryView(content, progressMonitor -> {
-            String manifestsDirectory = manifestsDirectoryField.getText();
-            if (!isValidManifestsDirectory(manifestsDirectory)) {
-                showError(errorLabel, "Select a valid Epic Games manifests directory.");
-                return;
-            }
-
-            hideError(errorLabel);
-            CompletableFuture.runAsync(() -> addEpicGames(progressMonitor, Path.of(manifestsDirectory)))
-                    .exceptionally(throwable -> {
-                        progressMonitor.done();
-                        return null;
-                    });
-        });
-    }
-
-    private VBox createPathCard(String labelText, TextField field, String chooserTitle, Runnable browseAction) {
-        var label = new Label(labelText);
-        label.getStyleClass().add("field-label");
-
-        var browseButton = new Button("Browse");
-        browseButton.getStyleClass().add("browse-button");
-        browseButton.setAccessibleText(chooserTitle);
-        browseButton.setOnAction(event -> browseAction.run());
-
-        var row = new HBox(field, browseButton);
-        row.getStyleClass().add("epic-games-location-row");
-        row.setAlignment(Pos.CENTER_LEFT);
-
-        var card = new VBox(label, row);
-        card.getStyleClass().add("epic-games-location-card");
-        return card;
-    }
-
-    private void chooseManifestsDirectory(TextField manifestsDirectoryField, Label errorLabel) {
-        var chooser = new DirectoryChooser();
-        chooser.setTitle("Select Epic Games Manifests Directory");
-
-        String currentPath = manifestsDirectoryField.getText();
-        File currentDirectory = currentPath == null || currentPath.isBlank() ? null : new File(currentPath);
-        File initialDirectory = currentDirectory != null && currentDirectory.isDirectory()
-                ? currentDirectory
-                : new File(System.getProperty("user.home"));
-        if (initialDirectory.isDirectory()) {
-            chooser.setInitialDirectory(initialDirectory);
-        }
-
-        File selectedDirectory = chooser.showDialog(manifestsDirectoryField.getScene().getWindow());
-        if (selectedDirectory != null) {
-            manifestsDirectoryField.setText(selectedDirectory.getAbsolutePath());
-            hideError(errorLabel);
-        }
-    }
-
     private static Path getDefaultManifestsDirectory() {
         return switch (OperatingSystem.getCurrent()) {
-            case WINDOWS ->
-                    Path.of(getProgramDataPath(), "Epic", "EpicGamesLauncher", "Data", "Manifests");
+            case WINDOWS -> Path.of(getProgramDataPath(), "Epic", "EpicGamesLauncher", "Data", "Manifests");
             case MACOS ->
                     Path.of(System.getProperty("user.home"), "Library", "Application Support", "Epic", "EpicGamesLauncher", "Data", "Manifests");
             default -> null;
@@ -298,15 +164,71 @@ public final class EpicGamesPlatform implements Platform {
         return result;
     }
 
-    private void hideError(Label errorLabel) {
-        errorLabel.setManaged(false);
-        errorLabel.setVisible(false);
+    @Override
+    public Image getIcon() {
+        return new Image(getClass().getResource("/images/platforms/epic_games.png").toExternalForm());
     }
 
-    private void showError(Label errorLabel, String message) {
-        errorLabel.setText(message);
-        errorLabel.setManaged(true);
-        errorLabel.setVisible(true);
+    @Override
+    public String getName() {
+        return "Epic Games";
+    }
+
+    @Override
+    public String getWebsite() {
+        return "https://www.epicgames.com/store/en-US/";
+    }
+
+    @Override
+    public String getDescription() {
+        return "Epic Games is a digital distribution platform and game development company known for its popular games, including Fortnite, and the Unreal Engine, a widely used game development engine.";
+    }
+
+    @Override
+    public Consumer<ProgressMonitor> performDiscovery() {
+        return progressMonitor -> {
+            progressMonitor.start("Finding Epic Games installation", 1);
+            Path path = getDefaultManifestsDirectory();
+            if (path == null) {
+                progressMonitor.done();
+                return;
+            }
+
+            addEpicGames(progressMonitor, path);
+        };
+    }
+
+    @Override
+    public ManualEntryView createManualEntryView() {
+        var form = new ManualEntryForm(
+                "Choose the Epic Games manifests directory used to find your Epic Games library.",
+                "epic-games",
+                true,
+                0
+        );
+
+        Path defaultManifestsDirectory = getDefaultManifestsDirectory();
+        var manifestsDirectoryField = form.addDirectoryField(
+                "Epic Games manifests directory",
+                defaultManifestsDirectory != null && isValidManifestsDirectory(defaultManifestsDirectory)
+                        ? defaultManifestsDirectory.toString() : "",
+                defaultManifestsDirectory == null ? "" : defaultManifestsDirectory.toString(),
+                "Select Epic Games Manifests Directory",
+                true
+        );
+
+        return form.build(progressMonitor -> {
+            String manifestsDirectory = manifestsDirectoryField.getText();
+            if (!form.validate(
+                    manifestsDirectoryField,
+                    EpicGamesPlatform::isValidManifestsDirectory,
+                    "Select a valid Epic Games manifests directory."
+            ))
+                return;
+
+            form.hideError();
+            ManualEntryForm.runAsync(progressMonitor, () -> addEpicGames(progressMonitor, Path.of(manifestsDirectory)));
+        });
     }
 
     public record EpicManifest(

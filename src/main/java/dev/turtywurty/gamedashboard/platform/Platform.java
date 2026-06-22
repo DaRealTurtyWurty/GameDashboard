@@ -7,18 +7,18 @@ import javafx.scene.image.Image;
 import java.util.function.Consumer;
 
 public interface Platform {
-    Image getIcon();
+    public Image getIcon();
 
-    String getName();
+    public String getName();
 
-    String getWebsite();
+    public String getWebsite();
 
-    String getDescription();
+    public String getDescription();
 
-    Consumer<ProgressMonitor> performDiscovery();
+    public Consumer<ProgressMonitor> performDiscovery();
 
-    ManualEntryView createManualEntryView();
+    public ManualEntryView createManualEntryView();
 
-    record ManualEntryView(Node content, Consumer<ProgressMonitor> saveAction) {
+    public record ManualEntryView(Node content, Consumer<ProgressMonitor> saveAction) {
     }
 }

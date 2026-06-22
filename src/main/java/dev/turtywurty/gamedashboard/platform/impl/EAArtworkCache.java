@@ -6,17 +6,12 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-final class EAArtworkCache {
+public final class EAArtworkCache {
     private static final Pattern IMAGE_URL = Pattern.compile(
             "https://app-images\\.ea\\.com/[A-Za-z0-9._~:/?#@!$&()*+,;=%\\-]+"
     );
@@ -28,7 +23,7 @@ final class EAArtworkCache {
         this.imageUrls = imageUrls;
     }
 
-    static EAArtworkCache loadDefault() {
+    public static EAArtworkCache loadDefault() {
         String localAppData = System.getenv("LOCALAPPDATA");
         if (localAppData == null || localAppData.isBlank())
             return new EAArtworkCache(List.of());
@@ -46,7 +41,7 @@ final class EAArtworkCache {
         return load(cacheData);
     }
 
-    static EAArtworkCache load(Path cacheData) {
+    public static EAArtworkCache load(Path cacheData) {
         if (!Files.isDirectory(cacheData))
             return new EAArtworkCache(List.of());
 
@@ -74,36 +69,9 @@ final class EAArtworkCache {
         }
     }
 
-    Artwork find(String title) {
-        List<ScoredUrl> candidates = new ArrayList<>();
-        for (String url : this.imageUrls) {
-            int titleScore = titleScore(title, url);
-            if (titleScore > 0)
-                candidates.add(new ScoredUrl(url, titleScore));
-        }
-
-        String square = candidates.stream()
-                .filter(candidate -> isSquareArt(candidate.url()))
-                .max(Comparator.comparingInt(candidate -> candidate.score() + squareTypeScore(candidate.url())))
-                .map(ScoredUrl::url)
-                .orElse(null);
-        String portrait = candidates.stream()
-                .filter(candidate -> isPortraitArt(candidate.url()))
-                .max(Comparator.comparingInt(candidate -> candidate.score() + portraitTypeScore(candidate.url())))
-                .map(ScoredUrl::url)
-                .orElse(null);
-        String logo = candidates.stream()
-                .filter(candidate -> isLogoArt(candidate.url()))
-                .max(Comparator.comparingInt(candidate -> candidate.score() + logoTypeScore(candidate.url())))
-                .map(ScoredUrl::url)
-                .orElse(null);
-
-        return new Artwork(resize(square, 300), resize(portrait, 400), resize(logo, 320));
-    }
-
     private static int titleScore(String title, String url) {
-        String normalizedTitle = EAInstallDiscovery.normalize(title);
-        String normalizedUrl = EAInstallDiscovery.normalize(url.substring(url.lastIndexOf('/') + 1));
+        String normalizedTitle = EAPlatform.normalize(title);
+        String normalizedUrl = EAPlatform.normalize(url.substring(url.lastIndexOf('/') + 1));
         if (normalizedTitle.isBlank() || normalizedUrl.isBlank())
             return 0;
 
@@ -178,8 +146,35 @@ final class EAArtworkCache {
         return base + "?impolicy=dynamic&w=" + width;
     }
 
-    record Artwork(String squareUrl, String portraitUrl, String logoUrl) {
-        boolean isEmpty() {
+    public Artwork find(String title) {
+        List<ScoredUrl> candidates = new ArrayList<>();
+        for (String url : this.imageUrls) {
+            int titleScore = titleScore(title, url);
+            if (titleScore > 0)
+                candidates.add(new ScoredUrl(url, titleScore));
+        }
+
+        String square = candidates.stream()
+                .filter(candidate -> isSquareArt(candidate.url()))
+                .max(Comparator.comparingInt(candidate -> candidate.score() + squareTypeScore(candidate.url())))
+                .map(ScoredUrl::url)
+                .orElse(null);
+        String portrait = candidates.stream()
+                .filter(candidate -> isPortraitArt(candidate.url()))
+                .max(Comparator.comparingInt(candidate -> candidate.score() + portraitTypeScore(candidate.url())))
+                .map(ScoredUrl::url)
+                .orElse(null);
+        String logo = candidates.stream()
+                .filter(candidate -> isLogoArt(candidate.url()))
+                .max(Comparator.comparingInt(candidate -> candidate.score() + logoTypeScore(candidate.url())))
+                .map(ScoredUrl::url)
+                .orElse(null);
+
+        return new Artwork(resize(square, 300), resize(portrait, 400), resize(logo, 320));
+    }
+
+    public record Artwork(String squareUrl, String portraitUrl, String logoUrl) {
+        private boolean isEmpty() {
             return this.squareUrl == null && this.portraitUrl == null && this.logoUrl == null;
         }
     }
