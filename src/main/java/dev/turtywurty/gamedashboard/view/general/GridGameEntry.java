@@ -233,6 +233,7 @@ public class GridGameEntry {
             case "epic_games" -> "/images/platforms/epic_games.png";
             case "gog" -> "/images/platforms/gog.png";
             case "ea_app" -> "/images/platforms/ea_app.png";
+            case "riot" -> "/images/platforms/riot.png";
             default -> null;
         };
         if (iconPath == null)

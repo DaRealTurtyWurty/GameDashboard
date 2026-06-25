@@ -3,6 +3,7 @@ package dev.turtywurty.gamedashboard.platform;
 import dev.turtywurty.gamedashboard.platform.impl.EpicGamesPlatform;
 import dev.turtywurty.gamedashboard.platform.impl.EAPlatform;
 import dev.turtywurty.gamedashboard.platform.impl.GOGPlatform;
+import dev.turtywurty.gamedashboard.platform.impl.RiotPlatform;
 import dev.turtywurty.gamedashboard.platform.impl.SteamPlatform;
 import dev.turtywurty.gamedashboard.platform.impl.UbisoftPlatform;
 
@@ -21,7 +22,7 @@ public final class Platforms {
         registerPlatform(new EAPlatform());
         registerPlatform(new GOGPlatform());
         registerPlatform(new UbisoftPlatform());
-//        registerPlatform(new BattleNetPlatform());
+        registerPlatform(new RiotPlatform());
     }
 
     public static void registerPlatform(Platform platform) {
