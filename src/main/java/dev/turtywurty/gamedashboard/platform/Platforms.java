@@ -1,11 +1,8 @@
 package dev.turtywurty.gamedashboard.platform;
 
-import dev.turtywurty.gamedashboard.platform.impl.EpicGamesPlatform;
-import dev.turtywurty.gamedashboard.platform.impl.EAPlatform;
-import dev.turtywurty.gamedashboard.platform.impl.GOGPlatform;
-import dev.turtywurty.gamedashboard.platform.impl.RiotPlatform;
-import dev.turtywurty.gamedashboard.platform.impl.SteamPlatform;
-import dev.turtywurty.gamedashboard.platform.impl.UbisoftPlatform;
+import dev.turtywurty.gamedashboard.platform.impl.*;
+import dev.turtywurty.gamedashboard.platform.impl.battle_net.BattleNetPlatform;
+import dev.turtywurty.gamedashboard.platform.impl.ea.EAPlatform;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,6 +20,7 @@ public final class Platforms {
         registerPlatform(new GOGPlatform());
         registerPlatform(new UbisoftPlatform());
         registerPlatform(new RiotPlatform());
+        registerPlatform(new BattleNetPlatform());
     }
 
     public static void registerPlatform(Platform platform) {

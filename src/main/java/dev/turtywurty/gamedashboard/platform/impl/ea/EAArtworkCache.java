@@ -1,4 +1,4 @@
-package dev.turtywurty.gamedashboard.platform.impl;
+package dev.turtywurty.gamedashboard.platform.impl.ea;
 
 import dev.turtywurty.gamedashboard.GameDashboardApp;
 

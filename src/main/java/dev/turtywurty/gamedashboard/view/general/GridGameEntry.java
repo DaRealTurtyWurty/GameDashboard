@@ -234,6 +234,8 @@ public class GridGameEntry {
             case "gog" -> "/images/platforms/gog.png";
             case "ea_app" -> "/images/platforms/ea_app.png";
             case "riot" -> "/images/platforms/riot.png";
+            case "ubisoft" -> "/images/platforms/ubisoft.png";
+            case "battle_net" -> "/images/platforms/battle_net.png";
             default -> null;
         };
         if (iconPath == null)
