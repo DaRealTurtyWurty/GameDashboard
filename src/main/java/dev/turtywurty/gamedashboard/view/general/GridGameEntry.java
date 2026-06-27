@@ -81,8 +81,7 @@ public class GridGameEntry {
         this.node = createNode();
 
         this.tile.setOnMouseClicked(event -> {
-            String command = game.getExecutionCommand();
-            if (command == null)
+            if (game.getLaunchTarget() == null)
                 return;
 
             try {

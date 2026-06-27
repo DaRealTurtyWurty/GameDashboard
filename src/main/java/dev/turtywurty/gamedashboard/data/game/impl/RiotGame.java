@@ -1,13 +1,14 @@
 package dev.turtywurty.gamedashboard.data.game.impl;
 
 import dev.turtywurty.gamedashboard.data.game.Game;
+import dev.turtywurty.gamedashboard.data.game.ExecutableLaunchTarget;
+import dev.turtywurty.gamedashboard.data.game.LaunchTarget;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
@@ -29,7 +30,7 @@ public final class RiotGame extends Game {
             String installLocation,
             String launcherExecutable
     ) {
-        super(title, description, executionCommand, thumbCoverImageURL, coverImageURL, nickname, "riot");
+        super(title, description, launchTarget(launcherExecutable, productId, patchline), thumbCoverImageURL, coverImageURL, nickname, "riot");
         this.productId = productId;
         this.patchline = patchline;
         this.installLocation = installLocation;
@@ -44,18 +45,16 @@ public final class RiotGame extends Game {
         return super.matches(game);
     }
 
-    @Override
-    public Process launch() throws IOException {
-        Path launcher = Path.of(this.launcherExecutable);
-        if (!Files.isRegularFile(launcher))
-            throw new IOException("Riot Client executable was not found at " + launcher);
-
-        return new ProcessBuilder(
-                launcher.toString(),
-                "--launch-product=" + this.productId,
-                "--launch-patchline=" + this.patchline)
-                .directory(launcher.getParent().toFile())
-                .start();
+    private static LaunchTarget launchTarget(String launcherExecutable, String productId, String patchline) {
+        Path launcher = Path.of(launcherExecutable);
+        return new ExecutableLaunchTarget(
+                launcher,
+                List.of(
+                "--launch-product=" + productId,
+                "--launch-patchline=" + patchline
+                ),
+                launcher.getParent()
+        );
     }
 
     public static Builder builder(

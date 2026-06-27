@@ -1,13 +1,15 @@
 package dev.turtywurty.gamedashboard.data.game.impl;
 
 import dev.turtywurty.gamedashboard.data.game.Game;
+import dev.turtywurty.gamedashboard.data.game.ExecutableLaunchTarget;
+import dev.turtywurty.gamedashboard.data.game.LaunchTarget;
+import dev.turtywurty.gamedashboard.data.game.UriLaunchTarget;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
@@ -29,7 +31,7 @@ public final class UbisoftGame extends Game {
             String launcherExecutable,
             String language
     ) {
-        super(title, description, executionCommand, thumbCoverImageURL, coverImageURL, nickname, "ubisoft");
+        super(title, description, launchTarget(ubisoftGameId, launcherExecutable), thumbCoverImageURL, coverImageURL, nickname, "ubisoft");
         this.ubisoftGameId = ubisoftGameId;
         this.installLocation = installLocation;
         this.launcherExecutable = launcherExecutable;
@@ -43,18 +45,15 @@ public final class UbisoftGame extends Game {
         return super.matches(game);
     }
 
-    @Override
-    public Process launch() throws IOException {
+    private static LaunchTarget launchTarget(int ubisoftGameId, String launcherExecutable) {
         Path launcher = launcherExecutable == null || launcherExecutable.isBlank()
                 ? null
                 : Path.of(launcherExecutable);
         String launchUri = "uplay://launch/" + ubisoftGameId + "/0";
-        if (launcher == null || !Files.isRegularFile(launcher))
-            return new ProcessBuilder("explorer.exe", launchUri).start();
+        if (launcher == null)
+            return new UriLaunchTarget(launchUri);
 
-        return new ProcessBuilder(launcher.toString(), launchUri)
-                .directory(launcher.getParent().toFile())
-                .start();
+        return new ExecutableLaunchTarget(launcher, List.of(launchUri), launcher.getParent());
     }
 
     public static Builder builder(

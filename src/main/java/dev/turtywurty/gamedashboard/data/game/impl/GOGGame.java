@@ -1,5 +1,6 @@
 package dev.turtywurty.gamedashboard.data.game.impl;
 
+import dev.turtywurty.gamedashboard.data.game.ExecutableLaunchTarget;
 import dev.turtywurty.gamedashboard.data.game.Game;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -13,14 +14,14 @@ public final class GOGGame extends Game {
     private final String slug;
 
     public GOGGame(String title, String description, String executionCommand, String thumbCoverImageURL, String coverImageURL, String nickname, long productId, String url, String slug) {
-        super(title, description, executionCommand, thumbCoverImageURL, coverImageURL, nickname, "gog");
+        super(title, description, ExecutableLaunchTarget.fromCommand(executionCommand), thumbCoverImageURL, coverImageURL, nickname, "gog");
         this.productId = productId;
         this.url = url;
         this.slug = slug;
     }
 
     public GOGGame(String title, String description, String executionCommand, long productId, String url, String slug) {
-        super(title, description, executionCommand);
+        super(title, description, ExecutableLaunchTarget.fromCommand(executionCommand));
         this.type = "gog";
         this.productId = productId;
         this.url = url;

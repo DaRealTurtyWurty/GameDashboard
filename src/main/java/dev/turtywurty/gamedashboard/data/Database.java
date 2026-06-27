@@ -5,6 +5,8 @@ import com.google.gson.GsonBuilder;
 import dev.turtywurty.gamedashboard.GameDashboardApp;
 import dev.turtywurty.gamedashboard.data.game.Game;
 import dev.turtywurty.gamedashboard.data.game.GameDeserializer;
+import dev.turtywurty.gamedashboard.data.game.LaunchTarget;
+import dev.turtywurty.gamedashboard.data.game.LaunchTargetJsonAdapter;
 import dev.turtywurty.gamedashboard.data.model.DashboardConfig;
 import dev.turtywurty.gamedashboard.data.store.ConfigStore;
 import dev.turtywurty.gamedashboard.data.store.GameStore;
@@ -27,6 +29,7 @@ import java.util.Optional;
 public final class Database {
     private static final Gson GSON = new GsonBuilder()
             .registerTypeAdapter(Game.class, new GameDeserializer())
+            .registerTypeAdapter(LaunchTarget.class, new LaunchTargetJsonAdapter())
             .setPrettyPrinting()
             .disableHtmlEscaping()
             .create();

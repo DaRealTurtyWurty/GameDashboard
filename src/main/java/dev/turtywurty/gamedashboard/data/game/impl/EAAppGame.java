@@ -1,12 +1,14 @@
 package dev.turtywurty.gamedashboard.data.game.impl;
 
 import dev.turtywurty.gamedashboard.data.game.Game;
+import dev.turtywurty.gamedashboard.data.game.ExecutableLaunchTarget;
+import dev.turtywurty.gamedashboard.data.game.LaunchTarget;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.IOException;
 import java.nio.file.Path;
+import java.util.List;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
@@ -24,7 +26,7 @@ public final class EAAppGame extends Game {
             String softwareId,
             String installDataPath
     ) {
-        super(title, description, executionCommand, thumbCoverImageURL, coverImageURL, nickname, "ea_app");
+        super(title, description, executableTarget(executionCommand), thumbCoverImageURL, coverImageURL, nickname, "ea_app");
         this.softwareId = softwareId;
         this.installDataPath = installDataPath;
     }
@@ -36,7 +38,7 @@ public final class EAAppGame extends Game {
             String softwareId,
             String installDataPath
     ) {
-        super(title, description, executionCommand);
+        super(title, description, executableTarget(executionCommand));
         this.type = "ea_app";
         this.softwareId = softwareId;
         this.installDataPath = installDataPath;
@@ -53,13 +55,9 @@ public final class EAAppGame extends Game {
         return this.installDataPath.equalsIgnoreCase(eaAppGame.installDataPath);
     }
 
-    @Override
-    public Process launch() throws IOException {
-        Path executable = Path.of(this.executionCommand);
-        ProcessBuilder processBuilder = new ProcessBuilder(executable.toString());
-        if (executable.getParent() != null)
-            processBuilder.directory(executable.getParent().toFile());
-        return processBuilder.start();
+    private static LaunchTarget executableTarget(String executionCommand) {
+        Path executable = Path.of(executionCommand);
+        return new ExecutableLaunchTarget(executable, List.of(), executable.getParent());
     }
 
     public static Builder builder(

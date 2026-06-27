@@ -1,6 +1,7 @@
 package dev.turtywurty.gamedashboard.data.game.impl;
 
 import dev.turtywurty.gamedashboard.data.game.Game;
+import dev.turtywurty.gamedashboard.data.game.UriLaunchTarget;
 import lombok.*;
 import org.jetbrains.annotations.Nullable;
 
@@ -14,12 +15,12 @@ public final class SteamGame extends Game {
     private final int steamAppId;
 
     public SteamGame(String title, String description, String executionCommand, int steamAppId, String thumbCoverImageURL, String coverImageURL, String nickname) {
-        super(title, description, executionCommand, thumbCoverImageURL, coverImageURL, nickname, "steam");
+        super(title, description, new UriLaunchTarget("steam://run/" + steamAppId), thumbCoverImageURL, coverImageURL, nickname, "steam");
         this.steamAppId = steamAppId;
     }
 
     public SteamGame(String title, String description, String executionCommand, int steamAppId) {
-        super(title, description, executionCommand);
+        super(title, description, new UriLaunchTarget("steam://run/" + steamAppId));
         this.type = "steam";
         this.steamAppId = steamAppId;
     }

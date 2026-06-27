@@ -43,7 +43,7 @@ public final class GameDeserializer implements JsonDeserializer<Game> {
         var game = new Game(
                 stringValue(object, "title"),
                 stringValue(object, "description"),
-                stringValue(object, "executionCommand"),
+                context.deserialize(object.get("launchTarget"), LaunchTarget.class),
                 stringValue(object, "thumbCoverImageURL"),
                 stringValue(object, "coverImageURL"),
                 stringValue(object, "nickname"),

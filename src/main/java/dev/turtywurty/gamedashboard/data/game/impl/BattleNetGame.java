@@ -1,6 +1,7 @@
 package dev.turtywurty.gamedashboard.data.game.impl;
 
 import dev.turtywurty.gamedashboard.data.game.Game;
+import dev.turtywurty.gamedashboard.data.game.UriLaunchTarget;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.jetbrains.annotations.Nullable;
@@ -23,7 +24,7 @@ public final class BattleNetGame extends Game {
             String uid,
             String installPath
     ) {
-        super(title, description, executionCommand, thumbCoverImageURL, coverImageURL, nickname, "battle_net");
+        super(title, description, new UriLaunchTarget("battle.net://launch/" + productCode), thumbCoverImageURL, coverImageURL, nickname, "battle_net");
         this.productCode = productCode;
         this.uid = uid;
         this.installPath = installPath;
@@ -37,7 +38,7 @@ public final class BattleNetGame extends Game {
             String uid,
             String installPath
     ) {
-        super(title, description, executionCommand);
+        super(title, description, new UriLaunchTarget("battle.net://launch/" + productCode));
         this.type = "battle_net";
         this.productCode = productCode;
         this.uid = uid;

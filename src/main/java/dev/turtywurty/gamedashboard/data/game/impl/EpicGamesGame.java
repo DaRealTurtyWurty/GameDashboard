@@ -1,6 +1,8 @@
 package dev.turtywurty.gamedashboard.data.game.impl;
 
+import dev.turtywurty.gamedashboard.data.game.ExecutableLaunchTarget;
 import dev.turtywurty.gamedashboard.data.game.Game;
+import dev.turtywurty.gamedashboard.data.game.LaunchTarget;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.jetbrains.annotations.Nullable;
@@ -15,12 +17,12 @@ public final class EpicGamesGame extends Game {
     private final String epicManifestPath;
 
     public EpicGamesGame(String title, String description, String executionCommand, String thumbCoverImageURL, String coverImageURL, String nickname, Path epicManifestPath) {
-        super(title, description, executionCommand, thumbCoverImageURL, coverImageURL, nickname, "epic_games");
+        super(title, description, executableTarget(executionCommand), thumbCoverImageURL, coverImageURL, nickname, "epic_games");
         this.epicManifestPath = epicManifestPath.toString();
     }
 
     public EpicGamesGame(String title, String description, String executionCommand, Path epicManifestPath) {
-        super(title, description, executionCommand);
+        super(title, description, executableTarget(executionCommand));
         this.type = "epic_games";
         this.epicManifestPath = epicManifestPath.toString();
     }
@@ -31,6 +33,11 @@ public final class EpicGamesGame extends Game {
             return false;
 
         return game instanceof EpicGamesGame epicGamesGame && this.epicManifestPath.equals(epicGamesGame.epicManifestPath);
+    }
+
+    private static LaunchTarget executableTarget(String executionCommand) {
+        Path executable = Path.of(executionCommand);
+        return new ExecutableLaunchTarget(executable, List.of(), executable.getParent());
     }
 
     @Override
