@@ -235,6 +235,7 @@ public class GridGameEntry {
             case "riot" -> "/images/platforms/riot.png";
             case "ubisoft" -> "/images/platforms/ubisoft.png";
             case "battle_net" -> "/images/platforms/battle_net.png";
+            case "microsoft_store" -> "/images/platforms/microsoft_store.png";
             default -> null;
         };
         if (iconPath == null)

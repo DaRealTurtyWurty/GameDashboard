@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import dev.turtywurty.gamedashboard.GameDashboardApp;
 import dev.turtywurty.gamedashboard.data.game.Game;
 import dev.turtywurty.gamedashboard.data.game.impl.SteamGame;
+import dev.turtywurty.gamedashboard.util.FileSystemsHolder;
 import dev.turtywurty.gamedashboard.util.OSUtils;
 import dev.turtywurty.gamedashboard.util.OperatingSystem;
 import dev.turtywurty.gamedashboard.util.ProgressMonitor;
@@ -235,22 +236,21 @@ public class SteamHandler {
             if (uriProtocolPath.isPresent())
                 return uriProtocolPath;
 
-            // Check common installation paths
-            for (char drive = 'C'; drive <= 'Z'; drive++) {
+            for (Path root : FileSystemsHolder.roots()) {
                 try {
-                    Path commonPath = Path.of(drive + ":\\Program Files (x86)\\Steam\\steam.exe");
+                    Path commonPath = root.resolve("Program Files (x86)").resolve("Steam").resolve("steam.exe");
                     if (Files.isRegularFile(commonPath))
                         return Optional.of(commonPath);
 
-                    commonPath = Path.of(drive + ":\\Program Files\\Steam\\steam.exe");
+                    commonPath = root.resolve("Program Files").resolve("Steam").resolve("steam.exe");
                     if (Files.isRegularFile(commonPath))
                         return Optional.of(commonPath);
 
-                    commonPath = Path.of(drive + ":\\Steam\\steam.exe");
+                    commonPath = root.resolve("Steam").resolve("steam.exe");
                     if (Files.isRegularFile(commonPath))
                         return Optional.of(commonPath);
                 } catch (Exception ignored) {
-                    // Some drives may not be happy with this, so we just ignore any exceptions and continue checking other drives.
+                    // Some roots may not be readable, so continue checking other roots.
                 }
             }
         } else if (OperatingSystem.CURRENT == OperatingSystem.MACOS) {

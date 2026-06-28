@@ -21,6 +21,7 @@ public final class Platforms {
         registerPlatform(new UbisoftPlatform());
         registerPlatform(new RiotPlatform());
         registerPlatform(new BattleNetPlatform());
+        registerPlatform(new MicrosoftStorePlatform());
     }
 
     public static void registerPlatform(Platform platform) {

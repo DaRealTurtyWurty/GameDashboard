@@ -24,6 +24,10 @@ out/
 bin/
 !**/src/main/**/bin/
 !**/src/test/**/bin/
+**/bin/
+**/obj/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
 
 ### NetBeans ###
 /nbproject/private/

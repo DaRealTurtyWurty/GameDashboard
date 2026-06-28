@@ -56,6 +56,39 @@ dependencies {
     implementation('org.jetbrains:annotations:26.1.0')
 }
 
+def windowsPackagesHelperProject = layout.projectDirectory.dir('tools/GameDashboard.WindowsPackages')
+def windowsPackagesHelperOutput = layout.buildDirectory.dir('windows-helper')
+
+tasks.register('publishWindowsPackagesHelper', Exec) {
+    onlyIf {
+        org.gradle.internal.os.OperatingSystem.current().isWindows()
+    }
+
+    inputs.files(fileTree(windowsPackagesHelperProject))
+    outputs.dir(windowsPackagesHelperOutput)
+    commandLine 'dotnet',
+            'publish',
+            windowsPackagesHelperProject.asFile.absolutePath,
+            '--configuration',
+            'Release',
+            '--output',
+            windowsPackagesHelperOutput.get().asFile.absolutePath
+}
+
+tasks.named('processResources') {
+    dependsOn tasks.named('publishWindowsPackagesHelper')
+}
+
+distributions {
+    main {
+        contents {
+            from(windowsPackagesHelperOutput) {
+                into 'windows-helper'
+            }
+        }
+    }
+}
+
 jlink {
     imageZip = project.file("${buildDir}/distributions/app-${javafx.platform.classifier}.zip")
     options = ['--strip-debug', '--compress', '2', '--no-header-files', '--no-man-pages']

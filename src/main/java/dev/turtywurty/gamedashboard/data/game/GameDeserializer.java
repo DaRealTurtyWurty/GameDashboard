@@ -5,12 +5,7 @@ import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
-import dev.turtywurty.gamedashboard.data.game.impl.EAAppGame;
-import dev.turtywurty.gamedashboard.data.game.impl.EpicGamesGame;
-import dev.turtywurty.gamedashboard.data.game.impl.GOGGame;
-import dev.turtywurty.gamedashboard.data.game.impl.RiotGame;
-import dev.turtywurty.gamedashboard.data.game.impl.SteamGame;
-import dev.turtywurty.gamedashboard.data.game.impl.UbisoftGame;
+import dev.turtywurty.gamedashboard.data.game.impl.*;
 
 import java.lang.reflect.Type;
 import java.util.Locale;
@@ -23,7 +18,9 @@ public final class GameDeserializer implements JsonDeserializer<Game> {
             "gog", GOGGame.class,
             "ea_app", EAAppGame.class,
             "ubisoft", UbisoftGame.class,
-            "riot", RiotGame.class
+            "riot", RiotGame.class,
+            "battle_net", BattleNetGame.class,
+            "microsoft_store", MicrosoftStoreGame.class
     );
 
     @Override
