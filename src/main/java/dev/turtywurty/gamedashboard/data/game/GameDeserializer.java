@@ -16,6 +16,7 @@ public final class GameDeserializer implements JsonDeserializer<Game> {
             "steam", SteamGame.class,
             "epic_games", EpicGamesGame.class,
             "gog", GOGGame.class,
+            "itch", ItchGame.class,
             "ea_app", EAAppGame.class,
             "ubisoft", UbisoftGame.class,
             "riot", RiotGame.class,

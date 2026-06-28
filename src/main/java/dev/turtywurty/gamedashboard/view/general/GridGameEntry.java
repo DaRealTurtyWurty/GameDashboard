@@ -231,6 +231,7 @@ public class GridGameEntry {
             case "steam" -> "/images/platforms/steam.png";
             case "epic_games" -> "/images/platforms/epic_games.png";
             case "gog" -> "/images/platforms/gog.png";
+            case "itch" -> "/images/platforms/itch.io.png";
             case "ea_app" -> "/images/platforms/ea_app.png";
             case "riot" -> "/images/platforms/riot.png";
             case "ubisoft" -> "/images/platforms/ubisoft.png";

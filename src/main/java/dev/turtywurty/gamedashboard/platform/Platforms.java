@@ -18,6 +18,7 @@ public final class Platforms {
         registerPlatform(new EpicGamesPlatform());
         registerPlatform(new EAPlatform());
         registerPlatform(new GOGPlatform());
+        registerPlatform(new ItchPlatform());
         registerPlatform(new UbisoftPlatform());
         registerPlatform(new RiotPlatform());
         registerPlatform(new BattleNetPlatform());
