@@ -221,9 +221,13 @@ public final class MicrosoftStorePlatform implements Platform {
             String appId = firstNonBlank(attribute(executable, "Id"), appxPackage.appId(), "App");
             Path contentRoot = configFile.getParent();
             Path installRoot = contentRoot == null ? null : contentRoot.getParent();
+            String displayName = cleanDisplayName(
+                    firstNonBlank(attribute(shellVisuals, "DefaultDisplayName"), appxPackage.displayName()),
+                    humanizePackageName(identityName)
+            );
             String description = firstNonBlank(attribute(shellVisuals, "Description"), appxPackage.description(), "");
             return Optional.of(new MicrosoftStoreInstallation(
-                    firstNonBlank(attribute(shellVisuals, "DefaultDisplayName"), appxPackage.displayName(), identityName),
+                    displayName,
                     description,
                     appxPackage.packageFamilyName(),
                     appxPackage.packageFullName(),
@@ -257,10 +261,7 @@ public final class MicrosoftStorePlatform implements Platform {
         if (installLocation == null || !Files.isDirectory(installLocation))
             return Optional.empty();
 
-        String displayName = appxPackage.displayName();
-        if (displayName == null || displayName.isBlank() || displayName.startsWith("ms-resource:")) {
-            displayName = humanizePackageName(appxPackage.name());
-        }
+        String displayName = cleanDisplayName(appxPackage.displayName(), humanizePackageName(appxPackage.name()));
 
         String description = firstNonBlank(appxPackage.description(), displayName);
         return Optional.of(new MicrosoftStoreInstallation(
@@ -601,6 +602,29 @@ public final class MicrosoftStorePlatform implements Platform {
         return value != null && prefix != null && value.regionMatches(true, 0, prefix, 0, prefix.length());
     }
 
+    private static String cleanDisplayName(String displayName, String fallback) {
+        String name = isResourceReference(displayName) ? fallback : firstNonBlank(displayName, fallback);
+        return splitJoinedWords(name)
+                .replaceAll("\\s+", " ")
+                .trim();
+    }
+
+    private static boolean isResourceReference(String value) {
+        return value != null && value.regionMatches(true, 0, "ms-resource:", 0, "ms-resource:".length());
+    }
+
+    private static String splitJoinedWords(String value) {
+        if (value == null || value.isBlank())
+            return "";
+
+        return value.replace('-', ' ')
+                .replace('_', ' ')
+                .replace('.', ' ')
+                .replaceAll("(?<=[a-z])(?=[A-Z])", " ")
+                .replaceAll("(?<=[A-Z])(?=[A-Z][a-z])", " ")
+                .replaceAll("(?<=[A-Za-z])(?=\\d)|(?<=\\d)(?=[A-Za-z])", " ");
+    }
+
     private static String normalizePackageFullName(String packageFullName) {
         return packageFullName == null ? "" : packageFullName.toLowerCase(Locale.ROOT);
     }
@@ -611,7 +635,9 @@ public final class MicrosoftStorePlatform implements Platform {
 
         int separator = packageName.lastIndexOf('.');
         String name = separator < 0 ? packageName : packageName.substring(separator + 1);
-        return name.replace('-', ' ').replace('_', ' ').trim();
+        return splitJoinedWords(name)
+                .replaceAll("\\s+", " ")
+                .trim();
     }
 
     private record MicrosoftStoreInstallation(
