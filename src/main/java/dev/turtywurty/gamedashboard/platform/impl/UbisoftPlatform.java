@@ -9,10 +9,10 @@ import dev.turtywurty.gamedashboard.platform.Platform;
 import dev.turtywurty.gamedashboard.util.OSUtils;
 import dev.turtywurty.gamedashboard.util.OperatingSystem;
 import dev.turtywurty.gamedashboard.util.ProgressMonitor;
+import dev.turtywurty.gamedashboard.util.Utils;
 import javafx.scene.image.Image;
 
 import java.nio.file.Files;
-import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
@@ -22,7 +22,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public final class UbisoftPlatform implements Platform {
-    private static final String PLACEHOLDER_COVER_URL = "https://fakeimg.pl/35x35";
     private static final List<String> INSTALL_ROOTS = List.of(
             "HKLM\\SOFTWARE\\Ubisoft\\Launcher\\Installs",
             "HKLM\\SOFTWARE\\WOW6432Node\\Ubisoft\\Launcher\\Installs"
@@ -69,15 +68,15 @@ public final class UbisoftPlatform implements Platform {
             String localIcon = installation.icon() != null && Files.isRegularFile(installation.icon())
                     ? installation.icon().toUri().toString()
                     : null;
-            String thumbnail = firstNonBlank(
+            String thumbnail = Utils.firstNonBlank(
                     metadata == null ? null : metadata.getThumbCoverURL(),
                     localIcon,
-                    PLACEHOLDER_COVER_URL
+                    Utils.PLACEHOLDER_COVER_URL
             );
-            String cover = firstNonBlank(
-                    usableMetadataUrl(metadata == null ? null : metadata.getCoverURL()),
+            String cover = Utils.firstNonBlank(
+                    Utils.isPlaceholderUrl(metadata == null ? null : metadata.getCoverURL()) ? null : metadata.getCoverURL(),
                     localIcon,
-                    PLACEHOLDER_COVER_URL
+                    Utils.PLACEHOLDER_COVER_URL
             );
 
             UbisoftGame game = UbisoftGame.builder(
@@ -101,7 +100,7 @@ public final class UbisoftPlatform implements Platform {
                     installation.gameId(),
                     installation.installLocation()
             );
-            javafx.application.Platform.runLater(() -> {
+            Utils.runOnFxThread(() -> {
                 if (!Database.getInstance().addGame(game))
                     Database.getInstance().updateGame(game, game);
             });
@@ -125,18 +124,6 @@ public final class UbisoftPlatform implements Platform {
             GameDashboardApp.LOGGER.warn("Unable to load metadata for Ubisoft title '{}'", title, exception);
             return null;
         }
-    }
-
-    private static String usableMetadataUrl(String url) {
-        return PLACEHOLDER_COVER_URL.equals(url) ? null : url;
-    }
-
-    private static String firstNonBlank(String... values) {
-        for (String value : values) {
-            if (value != null && !value.isBlank())
-                return value;
-        }
-        return "";
     }
 
     private static List<UbisoftInstallation> discover() {
@@ -197,7 +184,7 @@ public final class UbisoftPlatform implements Platform {
             return Optional.empty();
 
         OSUtils.RegistryEntry uninstallEntry = uninstallEntries.get(gameId);
-        Path installLocation = toPath(firstNonBlank(
+        Path installLocation = Utils.toPathOrNull(Utils.firstNonBlank(
                 installEntry.value("InstallDir"),
                 uninstallEntry == null ? null : uninstallEntry.value("InstallLocation")
         ));
@@ -229,7 +216,7 @@ public final class UbisoftPlatform implements Platform {
             if (entries.isEmpty())
                 continue;
 
-            Path installDirectory = toPath(entries.getFirst().value("InstallDir"));
+            Path installDirectory = Utils.toPathOrNull(entries.getFirst().value("InstallDir"));
             if (installDirectory == null)
                 continue;
 
@@ -309,21 +296,7 @@ public final class UbisoftPlatform implements Platform {
             path = path.substring(1, path.indexOf('"', 1));
         else if (path.lastIndexOf(',') > 2)
             path = path.substring(0, path.lastIndexOf(','));
-        return toPath(path);
-    }
-
-    private static Path toPath(String value) {
-        if (value == null || value.isBlank())
-            return null;
-        try {
-            return Path.of(value.replace("\"", "").trim()).normalize();
-        } catch (InvalidPathException exception) {
-            return null;
-        }
-    }
-
-    private static String firstNonBlank(String first, String second) {
-        return first == null || first.isBlank() ? second : first;
+        return Utils.toPathOrNull(path);
     }
 
     @Override

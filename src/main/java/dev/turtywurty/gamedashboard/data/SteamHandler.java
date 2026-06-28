@@ -9,8 +9,8 @@ import dev.turtywurty.gamedashboard.util.FileSystemsHolder;
 import dev.turtywurty.gamedashboard.util.OSUtils;
 import dev.turtywurty.gamedashboard.util.OperatingSystem;
 import dev.turtywurty.gamedashboard.util.ProgressMonitor;
+import dev.turtywurty.gamedashboard.util.Utils;
 import dev.turtywurty.gamedashboard.util.VDFtoJson;
-import javafx.application.Platform;
 import javafx.collections.ObservableList;
 import org.jetbrains.annotations.NotNull;
 
@@ -169,7 +169,7 @@ public class SteamHandler {
                     try {
                         Game game = futureSupplier.get();
 
-                        Platform.runLater(() -> {
+                        Utils.runOnFxThread(() -> {
                             if (game == null) {
                                 GameDashboardApp.LOGGER.warn("Failed to load game {}", name);
                             } else {
@@ -179,7 +179,7 @@ public class SteamHandler {
                             loadingGames.remove(name);
                         });
                     } catch (Exception exception) {
-                        Platform.runLater(() -> {
+                        Utils.runOnFxThread(() -> {
                             GameDashboardApp.LOGGER.error("Error loading game {}", name, exception);
                             loadingGames.remove(name);
                         });
@@ -397,7 +397,7 @@ public class SteamHandler {
         if (!isSteamConfigurationValid(executable, libraryFoldersPath))
             return;
 
-        runOnFxThread(() -> games.removeIf(SteamGame.class::isInstance));
+        Utils.runOnFxThread(() -> games.removeIf(SteamGame.class::isInstance));
 
         Map<String, Supplier<Game>> steamGames = locateSteamGames(libraryFoldersPath);
         if (steamGames.isEmpty()) {
@@ -412,7 +412,7 @@ public class SteamHandler {
             progressMonitor.start("Loading Steam games", steamGames.size());
         }
 
-        runOnFxThread(() -> loadingGames.addAll(steamGames.keySet()));
+        Utils.runOnFxThread(() -> loadingGames.addAll(steamGames.keySet()));
         Runnable loadAction = () -> {
             loadGames(steamGames, games, loadingGames, progressMonitor);
             if (progressMonitor != null) {
@@ -424,14 +424,6 @@ public class SteamHandler {
             new Thread(loadAction).start();
         } else {
             loadAction.run();
-        }
-    }
-
-    private static void runOnFxThread(Runnable action) {
-        if (Platform.isFxApplicationThread()) {
-            action.run();
-        } else {
-            Platform.runLater(action);
         }
     }
 

@@ -10,6 +10,7 @@ import dev.turtywurty.gamedashboard.platform.ManualEntryForm;
 import dev.turtywurty.gamedashboard.platform.Platform;
 import dev.turtywurty.gamedashboard.util.OperatingSystem;
 import dev.turtywurty.gamedashboard.util.ProgressMonitor;
+import dev.turtywurty.gamedashboard.util.Utils;
 import javafx.scene.image.Image;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
@@ -18,7 +19,6 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
-import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -36,7 +36,6 @@ import java.util.stream.Stream;
 public final class RiotPlatform implements Platform {
     private static final Gson GSON = new Gson();
     private static final Yaml YAML = createYamlParser();
-    private static final String PLACEHOLDER_COVER_URL = "https://fakeimg.pl/35x35";
     private static final String SETTINGS_SUFFIX = ".product_settings.yaml";
 
     @Override
@@ -144,8 +143,8 @@ public final class RiotPlatform implements Platform {
                             installation.launcherExecutable().toString()
                     )
                     .images(
-                            metadata == null ? PLACEHOLDER_COVER_URL : metadata.getThumbCoverURL(),
-                            metadata == null ? PLACEHOLDER_COVER_URL : metadata.getCoverURL()
+                            metadata == null ? Utils.PLACEHOLDER_COVER_URL : metadata.getThumbCoverURL(),
+                            metadata == null ? Utils.PLACEHOLDER_COVER_URL : metadata.getCoverURL()
                     )
                     .igdbGameId(metadata == null ? null : metadata.getIgdbGameId())
                     .nickname(installation.title())
@@ -158,7 +157,7 @@ public final class RiotPlatform implements Platform {
                     installation.patchline(),
                     installation.installLocation()
             );
-            javafx.application.Platform.runLater(() -> {
+            Utils.runOnFxThread(() -> {
                 if (!Database.getInstance().addGame(game)) {
                     Database.getInstance().updateGame(game, game);
                 }
@@ -215,12 +214,12 @@ public final class RiotPlatform implements Platform {
         Map<String, String> settings = readYamlSettings(settingsFile);
         String folderName = settingsFile.getParent().getFileName().toString();
         ProductIdentity identity = productIdentity(folderName);
-        String productId = firstNonBlank(
+        String productId = Utils.firstNonBlank(
                 settings.get("product_id"),
                 identity.productId(),
                 settings.get("product_name")
         );
-        String patchline = firstNonBlank(
+        String patchline = Utils.firstNonBlank(
                 settings.get("product_patchline"),
                 settings.get("patchline"),
                 identity.patchline(),
@@ -244,7 +243,7 @@ public final class RiotPlatform implements Platform {
             return Optional.empty();
         }
 
-        String title = firstNonBlank(
+        String title = Utils.firstNonBlank(
                 settings.get("product_display_name"),
                 knownTitle(productId),
                 humanize(settings.get("product_name")),
@@ -415,8 +414,8 @@ public final class RiotPlatform implements Platform {
             return false;
 
         try {
-            return isValidDataDirectory(Path.of(directory));
-        } catch (InvalidPathException exception) {
+            return isValidDataDirectory(Utils.toPathOrNull(directory));
+        } catch (RuntimeException exception) {
             return false;
         }
     }
@@ -431,19 +430,10 @@ public final class RiotPlatform implements Platform {
             return null;
 
         try {
-            return Path.of(value.replace('/', '\\')).normalize();
-        } catch (InvalidPathException exception) {
+            return Utils.toPathOrNull(value.replace('/', '\\'));
+        } catch (RuntimeException exception) {
             return null;
         }
-    }
-
-    private static String firstNonBlank(String... values) {
-        for (String value : values) {
-            if (value != null && !value.isBlank())
-                return value;
-        }
-
-        return "";
     }
 
     private record ProductIdentity(String productId, String patchline) {

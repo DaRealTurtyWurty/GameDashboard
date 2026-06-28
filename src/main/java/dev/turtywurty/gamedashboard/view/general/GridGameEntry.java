@@ -104,7 +104,7 @@ public class GridGameEntry {
                         newProcesses.removeAll(processes);
 
                         if (newProcesses.isEmpty()) {
-                            Platform.runLater(() -> {
+                            Utils.runOnFxThread(() -> {
                                 stage.show();
                                 stage.setIconified(false);
                                 tray.remove(icon);
@@ -123,7 +123,7 @@ public class GridGameEntry {
                                 .collect(Collectors.joining(", ")));
 
                         game.findPossibleProcess(newProcesses).ifPresent(process -> {
-                            Platform.runLater(() -> {
+                            Utils.runOnFxThread(() -> {
                                 stage.show();
                                 stage.setIconified(false);
                                 tray.remove(icon);
@@ -237,6 +237,7 @@ public class GridGameEntry {
             case "ubisoft" -> "/images/platforms/ubisoft.png";
             case "battle_net" -> "/images/platforms/battle_net.png";
             case "microsoft_store" -> "/images/platforms/microsoft_store.png";
+            case "google_play" -> "/images/platforms/google_play.png";
             default -> null;
         };
         if (iconPath == null)
@@ -305,7 +306,7 @@ public class GridGameEntry {
                 if (event.getButton() != MouseEvent.BUTTON1)
                     return;
 
-                Platform.runLater(() -> {
+                Utils.runOnFxThread(() -> {
                     stage.show();
                     stage.setIconified(false);
                     tray.remove(icon);
@@ -322,7 +323,7 @@ public class GridGameEntry {
         MenuItem exitItem = new MenuItem("Exit");
         MenuItem showItem = new MenuItem("Show");
         exitItem.addActionListener(ignored -> {
-            Platform.runLater(() -> {
+            Utils.runOnFxThread(() -> {
                 stage.close();
                 tray.remove(icon);
                 Platform.exit();
@@ -330,7 +331,7 @@ public class GridGameEntry {
         });
 
         showItem.addActionListener(ignored -> {
-            Platform.runLater(() -> {
+            Utils.runOnFxThread(() -> {
                 stage.show();
                 stage.setIconified(false);
                 tray.remove(icon);

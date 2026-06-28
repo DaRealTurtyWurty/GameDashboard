@@ -9,6 +9,7 @@ import dev.turtywurty.gamedashboard.platform.Platform;
 import dev.turtywurty.gamedashboard.util.OSUtils;
 import dev.turtywurty.gamedashboard.util.OperatingSystem;
 import dev.turtywurty.gamedashboard.util.ProgressMonitor;
+import dev.turtywurty.gamedashboard.util.Utils;
 import javafx.scene.image.Image;
 
 import java.io.BufferedInputStream;
@@ -27,7 +28,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 public final class EAPlatform implements Platform {
-    private static final String PLACEHOLDER_COVER_URL = "https://fakeimg.pl/35x35";
     private static final List<String> REGISTRY_ROOTS = List.of(
             "HKLM\\SOFTWARE\\EA Games",
             "HKLM\\SOFTWARE\\WOW6432Node\\EA Games",
@@ -69,11 +69,11 @@ public final class EAPlatform implements Platform {
             EAArtworkCache.Artwork artwork = artworkCache.find(installation.title());
             APIConnector.GameResult metadata = findMetadata(installation);
 
-            String thumbnail = firstNonBlank(
+            String thumbnail = Utils.firstNonBlank(
                     artwork.squareUrl(),
                     metadata == null ? null : metadata.getThumbCoverURL(),
                     artwork.portraitUrl(),
-                    PLACEHOLDER_COVER_URL
+                    Utils.PLACEHOLDER_COVER_URL
             );
             String cover = selectCover(artwork, metadata);
             String description = metadata == null || metadata.getSummary() == null
@@ -98,7 +98,7 @@ public final class EAPlatform implements Platform {
                     installation.title(),
                     installation.installLocation()
             );
-            javafx.application.Platform.runLater(() -> {
+            Utils.runOnFxThread(() -> {
                 if (!Database.getInstance().addGame(game))
                     Database.getInstance().updateGame(game, game);
             });
@@ -110,16 +110,12 @@ public final class EAPlatform implements Platform {
     }
 
     private static String selectCover(EAArtworkCache.Artwork artwork, APIConnector.GameResult metadata) {
-        return firstNonBlank(
-                usableMetadataUrl(metadata == null ? null : metadata.getCoverURL()),
+        return Utils.firstNonBlank(
+                Utils.isPlaceholderUrl(metadata == null ? null : metadata.getCoverURL()) ? null : metadata.getCoverURL(),
                 artwork.squareUrl(),
                 artwork.portraitUrl(),
-                PLACEHOLDER_COVER_URL
+                Utils.PLACEHOLDER_COVER_URL
         );
-    }
-
-    private static String usableMetadataUrl(String url) {
-        return PLACEHOLDER_COVER_URL.equals(url) ? null : url;
     }
 
     private static APIConnector.GameResult findMetadata(EAInstallation installation) {
@@ -148,14 +144,6 @@ public final class EAPlatform implements Platform {
             return null;
         String programData = System.getenv("PROGRAMDATA");
         return Path.of(programData == null || programData.isBlank() ? "C:\\ProgramData" : programData, "EA Desktop");
-    }
-
-    private static String firstNonBlank(String... values) {
-        for (String value : values) {
-            if (value != null && !value.isBlank())
-                return value;
-        }
-        return "";
     }
 
     private static List<EAInstallation> discover(Path eaDesktopDataDirectory) {
@@ -305,8 +293,8 @@ public final class EAPlatform implements Platform {
     }
 
     private static Path getInstallLocation(OSUtils.RegistryEntry entry) {
-        String value = firstNonBlank(entry.value("InstallLocation"), entry.value("Install Dir"));
-        return toPath(value);
+        String value = Utils.firstNonBlank(entry.value("InstallLocation"), entry.value("Install Dir"));
+        return Utils.toPathOrNull(value);
     }
 
     private static Path getDisplayIcon(OSUtils.RegistryEntry entry) {
@@ -319,17 +307,7 @@ public final class EAPlatform implements Platform {
             value = value.substring(1, value.indexOf('"', 1));
         else if (value.lastIndexOf(',') > 2)
             value = value.substring(0, value.lastIndexOf(','));
-        return toPath(value);
-    }
-
-    private static Path toPath(String value) {
-        if (value == null || value.isBlank())
-            return null;
-        try {
-            return Path.of(value.replace("\"", "").trim()).normalize();
-        } catch (RuntimeException exception) {
-            return null;
-        }
+        return Utils.toPathOrNull(value);
     }
 
     private static Optional<Path> findLikelyExecutable(Path installLocation, String title) {
@@ -382,10 +360,6 @@ public final class EAPlatform implements Platform {
                 .replaceAll("(?i)\\(TM\\)", "")
                 .replaceAll("\\s+", " ")
                 .trim();
-    }
-
-    private static String firstNonBlank(String first, String fallback) {
-        return first == null || first.isBlank() ? fallback : first;
     }
 
     @Override

@@ -23,6 +23,7 @@ public final class Platforms {
         registerPlatform(new RiotPlatform());
         registerPlatform(new BattleNetPlatform());
         registerPlatform(new MicrosoftStorePlatform());
+        registerPlatform(new GooglePlayGamesPlatform());
     }
 
     public static void registerPlatform(Platform platform) {

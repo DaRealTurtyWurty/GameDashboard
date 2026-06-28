@@ -14,6 +14,7 @@ import dev.turtywurty.gamedashboard.util.FileSystemsHolder;
 import dev.turtywurty.gamedashboard.util.OSUtils;
 import dev.turtywurty.gamedashboard.util.OperatingSystem;
 import dev.turtywurty.gamedashboard.util.ProgressMonitor;
+import dev.turtywurty.gamedashboard.util.Utils;
 import javafx.scene.image.Image;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -26,7 +27,6 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Consumer;
@@ -36,7 +36,6 @@ import java.util.stream.Stream;
 @SuppressWarnings({"ConstantValue", "SameParameterValue", "SpellCheckingInspection"})
 public final class MicrosoftStorePlatform implements Platform {
     private static final Gson GSON = new Gson();
-    private static final String PLACEHOLDER_COVER_URL = "https://fakeimg.pl/35x35";
 
     @Override
     public Image getIcon() {
@@ -93,7 +92,7 @@ public final class MicrosoftStorePlatform implements Platform {
         );
 
         return form.build(progressMonitor -> {
-            if (!form.validate(rootField, MicrosoftStorePlatform::isReadableDirectory, "Select a readable XboxGames directory."))
+            if (!form.validate(rootField, Utils::isReadableDirectory, "Select a readable XboxGames directory."))
                 return;
 
             form.hideError();
@@ -138,8 +137,8 @@ public final class MicrosoftStorePlatform implements Platform {
                     .installRoot(installation.installRoot() == null ? null : installation.installRoot().toString())
                     .contentRoot(installation.contentRoot() == null ? null : installation.contentRoot().toString())
                     .images(
-                            firstNonBlank(metadata == null ? null : metadata.getThumbCoverURL(), toImageUrl(installation.smallLogo()), PLACEHOLDER_COVER_URL),
-                            firstNonBlank(metadata == null ? null : metadata.getCoverURL(), toImageUrl(installation.coverImage()), PLACEHOLDER_COVER_URL),
+                            Utils.firstNonBlank(metadata == null ? null : metadata.getThumbCoverURL(), Utils.toImageUrl(installation.smallLogo()), Utils.PLACEHOLDER_COVER_URL),
+                            Utils.firstNonBlank(metadata == null ? null : metadata.getCoverURL(), Utils.toImageUrl(installation.coverImage()), Utils.PLACEHOLDER_COVER_URL),
                             null
                     )
                     .igdbGameId(metadata == null ? null : metadata.getIgdbGameId())
@@ -152,7 +151,7 @@ public final class MicrosoftStorePlatform implements Platform {
                     installation.packageFamilyName(),
                     installation.installRoot()
             );
-            javafx.application.Platform.runLater(() -> {
+            Utils.runOnFxThread(() -> {
                 if (!Database.getInstance().addGame(game)) {
                     Database.getInstance().updateGame(game, game);
                 }
@@ -218,30 +217,30 @@ public final class MicrosoftStorePlatform implements Platform {
             if (appxPackage == null)
                 return Optional.empty();
 
-            String appId = firstNonBlank(attribute(executable, "Id"), appxPackage.appId(), "App");
+            String appId = Utils.firstNonBlank(attribute(executable, "Id"), appxPackage.appId(), "App");
             Path contentRoot = configFile.getParent();
             Path installRoot = contentRoot == null ? null : contentRoot.getParent();
             String displayName = cleanDisplayName(
-                    firstNonBlank(attribute(shellVisuals, "DefaultDisplayName"), appxPackage.displayName()),
+                    Utils.firstNonBlank(attribute(shellVisuals, "DefaultDisplayName"), appxPackage.displayName()),
                     humanizePackageName(identityName)
             );
-            String description = firstNonBlank(attribute(shellVisuals, "Description"), appxPackage.description(), "");
+            String description = Utils.firstNonBlank(attribute(shellVisuals, "Description"), appxPackage.description(), "");
             return Optional.of(new MicrosoftStoreInstallation(
                     displayName,
                     description,
                     appxPackage.packageFamilyName(),
                     appxPackage.packageFullName(),
                     text(document, "StoreId"),
-                    firstNonBlank(text(document, "TitleId"), appxPackage.titleId()),
+                    Utils.firstNonBlank(text(document, "TitleId"), appxPackage.titleId()),
                     appxPackage.packageFamilyName() + "!" + appId,
                     installRoot,
                     contentRoot,
                     resolveAsset(contentRoot, attribute(shellVisuals, "Square44x44Logo")),
-                    resolveAsset(contentRoot, firstNonBlank(
+                    resolveAsset(contentRoot, Utils.firstNonBlank(
                             attribute(shellVisuals, "SplashScreenImage"),
                             attribute(shellVisuals, "Square150x150Logo")
                     )),
-                    resolveAsset(contentRoot, firstNonBlank(
+                    resolveAsset(contentRoot, Utils.firstNonBlank(
                             attribute(shellVisuals, "Square480x480Logo"),
                             attribute(shellVisuals, "StoreLogo"),
                             attribute(shellVisuals, "Square150x150Logo")
@@ -257,13 +256,13 @@ public final class MicrosoftStorePlatform implements Platform {
         if (appxPackage.packageFamilyName() == null || appxPackage.launchId() == null)
             return Optional.empty();
 
-        Path installLocation = toPath(appxPackage.installLocation());
+        Path installLocation = Utils.toPathOrNull(appxPackage.installLocation());
         if (installLocation == null || !Files.isDirectory(installLocation))
             return Optional.empty();
 
         String displayName = cleanDisplayName(appxPackage.displayName(), humanizePackageName(appxPackage.name()));
 
-        String description = firstNonBlank(appxPackage.description(), displayName);
+        String description = Utils.firstNonBlank(appxPackage.description(), displayName);
         return Optional.of(new MicrosoftStoreInstallation(
                 displayName,
                 description,
@@ -355,7 +354,7 @@ public final class MicrosoftStorePlatform implements Platform {
         if (installedPackage.name() == null || installedPackage.installLocation() == null)
             return List.of();
 
-        Path installLocation = toPath(installedPackage.installLocation());
+        Path installLocation = Utils.toPathOrNull(installedPackage.installLocation());
         if (installLocation == null)
             return List.of();
 
@@ -374,7 +373,7 @@ public final class MicrosoftStorePlatform implements Platform {
                 String appId = attribute(application, "Id");
                 String executable = attribute(application, "Executable");
                 String startPage = attribute(application, "StartPage");
-                if (appId == null || firstNonBlank(executable, startPage).isBlank())
+                if (appId == null || Utils.firstNonBlank(executable, startPage).isBlank())
                     continue;
 
                 Element visualElements = firstChildElement(application, "VisualElements").orElse(null);
@@ -420,7 +419,7 @@ public final class MicrosoftStorePlatform implements Platform {
     private static Optional<Path> findWindowsPackageHelper() {
         String configuredPath = System.getProperty("gamedashboard.windowsPackagesHelper");
         if (configuredPath != null && !configuredPath.isBlank()) {
-            Path path = toPath(configuredPath);
+            Path path = Utils.toPathOrNull(configuredPath);
             if (isExecutable(path))
                 return Optional.of(path);
         }
@@ -488,18 +487,6 @@ public final class MicrosoftStorePlatform implements Platform {
         }
 
         return roots;
-    }
-
-    private static boolean isReadableDirectory(String value) {
-        if (value == null || value.isBlank())
-            return false;
-
-        try {
-            Path path = Path.of(value);
-            return Files.isDirectory(path) && Files.isReadable(path);
-        } catch (InvalidPathException exception) {
-            return false;
-        }
     }
 
     @SuppressWarnings("HttpUrlsUsage")
@@ -570,30 +557,6 @@ public final class MicrosoftStorePlatform implements Platform {
         return Files.isRegularFile(resolved) ? resolved : null;
     }
 
-    private static String toImageUrl(Path imagePath) {
-        return imagePath == null ? null : imagePath.toUri().toString();
-    }
-
-    private static Path toPath(String value) {
-        if (value == null || value.isBlank())
-            return null;
-
-        try {
-            return Path.of(value);
-        } catch (InvalidPathException exception) {
-            return null;
-        }
-    }
-
-    private static String firstNonBlank(String... values) {
-        for (String value : values) {
-            if (value != null && !value.isBlank())
-                return value;
-        }
-
-        return "";
-    }
-
     private static boolean equalsIgnoreCase(String left, String right) {
         return left != null && right != null && left.equalsIgnoreCase(right);
     }
@@ -603,7 +566,7 @@ public final class MicrosoftStorePlatform implements Platform {
     }
 
     private static String cleanDisplayName(String displayName, String fallback) {
-        String name = isResourceReference(displayName) ? fallback : firstNonBlank(displayName, fallback);
+        String name = isResourceReference(displayName) ? fallback : Utils.firstNonBlank(displayName, fallback);
         return splitJoinedWords(name)
                 .replaceAll("\\s+", " ")
                 .trim();

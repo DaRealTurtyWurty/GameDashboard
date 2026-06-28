@@ -3,6 +3,7 @@ package dev.turtywurty.gamedashboard.view.onboarding;
 import dev.turtywurty.gamedashboard.platform.Platform;
 import dev.turtywurty.gamedashboard.platform.Platforms;
 import dev.turtywurty.gamedashboard.util.ProgressMonitor;
+import dev.turtywurty.gamedashboard.util.Utils;
 import dev.turtywurty.gamedashboard.util.WebUtils;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
@@ -136,7 +137,7 @@ public class PlatformsPage extends VBox {
                             int normalizedTotalWork = Math.max(totalWork, 0);
                             totalWorkCounter.set(normalizedTotalWork);
                             completedWork.set(0);
-                            PlatformsPage.runOnFxThread(() -> {
+                            Utils.runOnFxThread(() -> {
                                 discoveryTaskLabel.setText(taskName == null || taskName.isBlank()
                                         ? "Discovering " + platform.getName()
                                         : taskName);
@@ -151,7 +152,7 @@ public class PlatformsPage extends VBox {
                         public void worked(int work) {
                             int completed = completedWork.addAndGet(Math.max(work, 0));
                             int total = totalWorkCounter.get();
-                            PlatformsPage.runOnFxThread(() -> {
+                            Utils.runOnFxThread(() -> {
                                 if (total > 0) {
                                     double progress = Math.min(1, (double) completed / total);
                                     discoveryProgressBar.setProgress(progress);
@@ -162,7 +163,7 @@ public class PlatformsPage extends VBox {
 
                         @Override
                         public void done() {
-                            PlatformsPage.runOnFxThread(() -> {
+                            Utils.runOnFxThread(() -> {
                                 discoveryProgressBar.setProgress(1);
                                 discoveryStatusLabel.setText("Discovery complete");
                                 startDiscoveryButton.setDisable(false);
@@ -172,7 +173,7 @@ public class PlatformsPage extends VBox {
 
                     CompletableFuture.runAsync(() -> progressMonitorConsumer.accept(progressMonitor))
                             .exceptionally(throwable -> {
-                                PlatformsPage.runOnFxThread(() -> {
+                                Utils.runOnFxThread(() -> {
                                     discoveryProgressBar.setProgress(0);
                                     discoveryStatusLabel.setText("Discovery failed");
                                     startDiscoveryButton.setDisable(false);
@@ -221,7 +222,7 @@ public class PlatformsPage extends VBox {
                     int normalizedTotalWork = Math.max(totalWork, 0);
                     totalWorkCounter.set(normalizedTotalWork);
                     completedWork.set(0);
-                    PlatformsPage.runOnFxThread(() -> {
+                    Utils.runOnFxThread(() -> {
                         actionButton.setDisable(true);
                         progressView.setManaged(true);
                         progressView.setVisible(true);
@@ -239,7 +240,7 @@ public class PlatformsPage extends VBox {
                 public void worked(int work) {
                     int completed = completedWork.addAndGet(Math.max(work, 0));
                     int total = totalWorkCounter.get();
-                    PlatformsPage.runOnFxThread(() -> {
+                    Utils.runOnFxThread(() -> {
                         if (total > 0) {
                             double progress = Math.min(1, (double) completed / total);
                             progressBar.setProgress(progress);
@@ -250,7 +251,7 @@ public class PlatformsPage extends VBox {
 
                 @Override
                 public void done() {
-                    PlatformsPage.runOnFxThread(() -> {
+                    Utils.runOnFxThread(() -> {
                         progressBar.setProgress(1);
                         statusLabel.setText(completionText);
                         actionButton.setDisable(false);
@@ -285,7 +286,7 @@ public class PlatformsPage extends VBox {
                     @Override
                     public void start(String taskName, int totalWork) {
                         progressMonitor.start(taskName, totalWork);
-                        PlatformsPage.runOnFxThread(() -> saveButton.setDisable(true));
+                        Utils.runOnFxThread(() -> saveButton.setDisable(true));
                     }
 
                     @Override
@@ -296,7 +297,7 @@ public class PlatformsPage extends VBox {
                     @Override
                     public void done() {
                         progressMonitor.done();
-                        PlatformsPage.runOnFxThread(dialog::close);
+                        Utils.runOnFxThread(dialog::close);
                     }
                 });
             });
@@ -304,11 +305,4 @@ public class PlatformsPage extends VBox {
         }
     }
 
-    private static void runOnFxThread(Runnable action) {
-        if (javafx.application.Platform.isFxApplicationThread()) {
-            action.run();
-        } else {
-            javafx.application.Platform.runLater(action);
-        }
-    }
 }

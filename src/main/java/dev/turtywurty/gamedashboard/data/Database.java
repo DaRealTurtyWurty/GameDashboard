@@ -11,7 +11,7 @@ import dev.turtywurty.gamedashboard.data.model.DashboardConfig;
 import dev.turtywurty.gamedashboard.data.store.ConfigStore;
 import dev.turtywurty.gamedashboard.data.store.GameStore;
 import dev.turtywurty.gamedashboard.util.ProgressMonitor;
-import javafx.application.Platform;
+import dev.turtywurty.gamedashboard.util.Utils;
 import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.FXCollections;
@@ -177,7 +177,7 @@ public final class Database {
         if (!SteamHandler.isSteamConfigurationValid(executablePath, libraryFoldersPath))
             return false;
 
-        runOnFxThread(() -> {
+        Utils.runOnFxThread(() -> {
             this.steamExecutable.set(executablePath.toString());
             this.steamLibraryFolders.set(libraryFoldersPath.toString());
         });
@@ -221,14 +221,6 @@ public final class Database {
         return this.games.stream()
                 .filter(game::matches)
                 .findFirst();
-    }
-
-    private void runOnFxThread(Runnable action) {
-        if (Platform.isFxApplicationThread()) {
-            action.run();
-        } else {
-            Platform.runLater(action);
-        }
     }
 
     public void completeOnboarding() {

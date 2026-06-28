@@ -7,6 +7,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import dev.turtywurty.gamedashboard.GameDashboardApp;
+import dev.turtywurty.gamedashboard.util.Utils;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.Getter;
@@ -34,7 +35,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public final class APIConnector {
     private static final String BASE_URL = "https://api.turtywurty.dev/";
-    private static final String PLACEHOLDER_COVER_URL = "https://fakeimg.pl/35x35";
     private static final int MAX_RATE_LIMIT_RETRIES = 5;
     private static final long MAX_RATE_LIMIT_DELAY_MILLIS = 60_000;
     private static final long MIN_REQUEST_INTERVAL_MILLIS = 250;
@@ -344,8 +344,8 @@ public final class APIConnector {
                     getOptionalInteger(game, "version_parent"),
                     coverId,
                     summary,
-                    coverUrls == null ? PLACEHOLDER_COVER_URL : coverUrls.thumbnailUrl(),
-                    coverUrls == null ? PLACEHOLDER_COVER_URL : coverUrls.coverUrl()
+                    coverUrls == null ? Utils.PLACEHOLDER_COVER_URL : coverUrls.thumbnailUrl(),
+                    coverUrls == null ? Utils.PLACEHOLDER_COVER_URL : coverUrls.coverUrl()
             ));
         }
 
@@ -793,7 +793,7 @@ public final class APIConnector {
                 ? igdbGameId
                 : firstNonNull(igdbGameId, coverUrls.igdbGameId());
         if (coverUrls == null)
-            return new GameResult(resolvedIgdbGameId, name, PLACEHOLDER_COVER_URL, PLACEHOLDER_COVER_URL, summary);
+            return new GameResult(resolvedIgdbGameId, name, Utils.PLACEHOLDER_COVER_URL, Utils.PLACEHOLDER_COVER_URL, summary);
 
         return new GameResult(resolvedIgdbGameId, name, coverUrls.thumbnailUrl(), coverUrls.coverUrl(), summary);
     }
@@ -1009,8 +1009,8 @@ public final class APIConnector {
             return new GameResult(
                     realIgdbId(this.id),
                     this.name,
-                    this.thumbCoverURL == null ? PLACEHOLDER_COVER_URL : this.thumbCoverURL,
-                    this.coverURL == null ? PLACEHOLDER_COVER_URL : this.coverURL,
+                    this.thumbCoverURL == null ? Utils.PLACEHOLDER_COVER_URL : this.thumbCoverURL,
+                    this.coverURL == null ? Utils.PLACEHOLDER_COVER_URL : this.coverURL,
                     this.summary
             );
         }

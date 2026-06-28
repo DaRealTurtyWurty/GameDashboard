@@ -3,6 +3,7 @@ package dev.turtywurty.gamedashboard;
 import dev.turtywurty.gamedashboard.data.Database;
 import dev.turtywurty.gamedashboard.preloader.GameDashboardPreloader;
 import dev.turtywurty.gamedashboard.util.OperatingSystem;
+import dev.turtywurty.gamedashboard.util.Utils;
 import dev.turtywurty.gamedashboard.view.GameDashboardPane;
 import dev.turtywurty.gamedashboard.view.onboarding.OnboardingPane;
 import io.github.cdimascio.dotenv.Dotenv;
@@ -42,7 +43,7 @@ public class GameDashboardApp extends Application {
 
         var root = new StackPane();
 
-        Runnable openDashboard = () -> Platform.runLater(() -> root.getChildren().setAll(new GameDashboardPane()));
+        Runnable openDashboard = () -> Utils.runOnFxThread(() -> root.getChildren().setAll(new GameDashboardPane()));
 
         if (Database.getInstance().isOnboardingComplete()) {
             openDashboard.run();

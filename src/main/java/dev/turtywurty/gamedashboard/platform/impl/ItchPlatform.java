@@ -14,13 +14,13 @@ import dev.turtywurty.gamedashboard.platform.ManualEntryForm;
 import dev.turtywurty.gamedashboard.platform.Platform;
 import dev.turtywurty.gamedashboard.util.OperatingSystem;
 import dev.turtywurty.gamedashboard.util.ProgressMonitor;
+import dev.turtywurty.gamedashboard.util.Utils;
 import javafx.scene.image.Image;
 import javafx.stage.FileChooser;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.InputStreamReader;
 import java.nio.file.Files;
-import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -37,7 +37,6 @@ import java.util.zip.GZIPInputStream;
 
 public final class ItchPlatform implements Platform {
     private static final Gson GSON = new Gson();
-    private static final String PLACEHOLDER_COVER_URL = "https://fakeimg.pl/35x35";
     private static final String INSTALLED_GAMES_QUERY = """
             SELECT
                 caves.id AS cave_id,
@@ -108,12 +107,12 @@ public final class ItchPlatform implements Platform {
                 if (path == null || path.isBlank())
                     continue;
 
-                Path installLocation = Path.of(path);
-                if (Files.isDirectory(installLocation)) {
+                Path installLocation = Utils.toPathOrNull(path);
+                if (installLocation != null && Files.isDirectory(installLocation)) {
                     installLocations.add(installLocation);
                 }
             }
-        } catch (SQLException | InvalidPathException exception) {
+        } catch (SQLException exception) {
             GameDashboardApp.LOGGER.warn("Failed to read itch install locations", exception);
         }
 
@@ -216,10 +215,10 @@ public final class ItchPlatform implements Platform {
             APIConnector.GameResult gameResult = findIGDBGame(product.gameId(), product.title());
             String description = gameResult == null || gameResult.getSummary() == null ? "" : gameResult.getSummary();
             String thumbCoverImageURL = gameResult == null || gameResult.getThumbCoverURL() == null
-                    ? PLACEHOLDER_COVER_URL
+                    ? Utils.PLACEHOLDER_COVER_URL
                     : gameResult.getThumbCoverURL();
             String coverImageURL = gameResult == null || gameResult.getCoverURL() == null
-                    ? PLACEHOLDER_COVER_URL
+                    ? Utils.PLACEHOLDER_COVER_URL
                     : gameResult.getCoverURL();
 
             var game = ItchGame.builder(
@@ -236,7 +235,7 @@ public final class ItchPlatform implements Platform {
                     .nickname(product.title())
                     .build();
 
-            javafx.application.Platform.runLater(() -> {
+            Utils.runOnFxThread(() -> {
                 if (!Database.getInstance().addGame(game)) {
                     Database.getInstance().updateGame(game, game);
                 }
@@ -360,18 +359,11 @@ public final class ItchPlatform implements Platform {
     }
 
     private static boolean isValidDatabaseFile(String databasePath) {
-        if (databasePath == null || databasePath.isBlank())
-            return false;
-
-        try {
-            return isValidDatabaseFile(Path.of(databasePath));
-        } catch (InvalidPathException exception) {
-            return false;
-        }
+        return isValidDatabaseFile(Utils.toPathOrNull(databasePath));
     }
 
     private static boolean isValidDatabaseFile(Path databasePath) {
-        return Files.isRegularFile(databasePath);
+        return databasePath != null && Files.isRegularFile(databasePath);
     }
 
     private static @Nullable APIConnector.GameResult findIGDBGame(long itchGameId, String title) {

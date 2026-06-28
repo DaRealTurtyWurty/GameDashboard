@@ -21,7 +21,8 @@ public final class GameDeserializer implements JsonDeserializer<Game> {
             "ubisoft", UbisoftGame.class,
             "riot", RiotGame.class,
             "battle_net", BattleNetGame.class,
-            "microsoft_store", MicrosoftStoreGame.class
+            "microsoft_store", MicrosoftStoreGame.class,
+            "google_play", GooglePlayGame.class
     );
 
     @Override

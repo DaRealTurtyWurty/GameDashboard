@@ -10,6 +10,7 @@ import dev.turtywurty.gamedashboard.platform.ManualEntryForm;
 import dev.turtywurty.gamedashboard.platform.Platform;
 import dev.turtywurty.gamedashboard.util.OperatingSystem;
 import dev.turtywurty.gamedashboard.util.ProgressMonitor;
+import dev.turtywurty.gamedashboard.util.Utils;
 import javafx.scene.image.Image;
 import javafx.stage.FileChooser;
 import org.jetbrains.annotations.NotNull;
@@ -17,7 +18,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.sql.*;
 import java.util.ArrayList;
@@ -28,7 +28,6 @@ import java.util.function.Consumer;
 
 public final class GOGPlatform implements Platform {
     private static final Gson GSON = new Gson();
-    private static final String PLACEHOLDER_COVER_URL = "https://fakeimg.pl/35x35";
     private static final String INSTALLED_PRODUCTS_QUERY = """
             SELECT DISTINCT details.*,
                 installed.installationPath AS installationPath,
@@ -126,16 +125,16 @@ public final class GOGPlatform implements Platform {
                     )
                     .images(
                             thumbCoverImageURL == null || thumbCoverImageURL.isBlank()
-                                    ? PLACEHOLDER_COVER_URL
+                                    ? Utils.PLACEHOLDER_COVER_URL
                                     : thumbCoverImageURL,
                             coverImageURL == null || coverImageURL.isBlank()
-                                    ? PLACEHOLDER_COVER_URL
+                                    ? Utils.PLACEHOLDER_COVER_URL
                                     : coverImageURL
                     )
                     .igdbGameId(gameResult == null ? null : gameResult.getIgdbGameId())
                     .nickname(product.title())
                     .build();
-            javafx.application.Platform.runLater(() -> {
+            Utils.runOnFxThread(() -> {
                 if (!Database.getInstance().addGame(game)) {
                     Database.getInstance().updateGame(game, game);
                 }
@@ -162,20 +161,20 @@ public final class GOGPlatform implements Platform {
             );
             JsonObject originalImages = getJsonObject(resultSet.getString("originalImages"));
             JsonObject images = getJsonObject(resultSet.getString("images"));
-            String thumbCoverImageURL = firstNonBlank(
+            String thumbCoverImageURL = Utils.firstNonBlank(
                     getFirstJsonString(originalImages, "squareIcon"),
                     getFirstJsonString(images, "icon", "sidebarIcon2x", "sidebarIcon")
             );
-            String coverImageURL = firstNonBlank(
+            String coverImageURL = Utils.firstNonBlank(
                     getFirstJsonString(originalImages, "verticalCover"),
                     getFirstJsonString(originalImages, "background"),
                     getFirstJsonString(images, "background", "logo2x", "logo")
             );
-            thumbCoverImageURL = firstNonBlank(
+            thumbCoverImageURL = Utils.firstNonBlank(
                     findLocalWebCacheImage(databasePath, productId, thumbCoverImageURL),
                     thumbCoverImageURL
             );
-            coverImageURL = firstNonBlank(
+            coverImageURL = Utils.firstNonBlank(
                     findLocalWebCacheImage(databasePath, productId, coverImageURL),
                     coverImageURL
             );
@@ -276,15 +275,6 @@ public final class GOGPlatform implements Platform {
         return separatorIndex >= 0 ? path.substring(separatorIndex + 1) : path;
     }
 
-    private static @Nullable String firstNonBlank(@Nullable String... values) {
-        for (String value : values) {
-            if (value != null && !value.isBlank())
-                return value;
-        }
-
-        return null;
-    }
-
     private static @Nullable Path getDefaultDatabasePath() {
         return switch (OperatingSystem.getCurrent()) {
             case WINDOWS -> Path.of(getProgramDataPath(), "GOG.com", "Galaxy", "storage", "galaxy-2.0.db");
@@ -302,18 +292,11 @@ public final class GOGPlatform implements Platform {
     }
 
     private static boolean isValidDatabaseFile(String databasePath) {
-        if (databasePath == null || databasePath.isBlank())
-            return false;
-
-        try {
-            return isValidDatabaseFile(Path.of(databasePath));
-        } catch (InvalidPathException exception) {
-            return false;
-        }
+        return isValidDatabaseFile(Utils.toPathOrNull(databasePath));
     }
 
     private static boolean isValidDatabaseFile(Path databasePath) {
-        return Files.isRegularFile(databasePath);
+        return databasePath != null && Files.isRegularFile(databasePath);
     }
 
     private static APIConnector.GameResult searchGame(String title) {

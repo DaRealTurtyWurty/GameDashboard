@@ -9,6 +9,7 @@ import dev.turtywurty.gamedashboard.platform.ManualEntryForm;
 import dev.turtywurty.gamedashboard.platform.Platform;
 import dev.turtywurty.gamedashboard.util.OperatingSystem;
 import dev.turtywurty.gamedashboard.util.ProgressMonitor;
+import dev.turtywurty.gamedashboard.util.Utils;
 import javafx.scene.image.Image;
 import javafx.stage.FileChooser;
 
@@ -23,7 +24,6 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 public final class BattleNetPlatform implements Platform {
-    private static final String PLACEHOLDER_COVER_URL = "https://fakeimg.pl/35x35";
     private static final Set<String> NON_GAME_PRODUCT_CODES = Set.of("agent", "bna");
 
     @Override
@@ -105,14 +105,8 @@ public final class BattleNetPlatform implements Platform {
     }
 
     private static boolean isValidProductDbPath(String value) {
-        if (value == null || value.isBlank())
-            return false;
-
-        try {
-            return Files.isRegularFile(Path.of(value));
-        } catch (InvalidPathException exception) {
-            return false;
-        }
+        Path path = Utils.toPathOrNull(value);
+        return path != null && Files.isRegularFile(path);
     }
 
     private static void addBattleNetGames(ProgressMonitor progressMonitor) {
@@ -151,17 +145,17 @@ public final class BattleNetPlatform implements Platform {
                     true,
                     true
             ).join().gameResult();
-            String thumbnail = firstNonBlank(
+            String thumbnail = Utils.firstNonBlank(
                     resourceUrl(installation.icon()).orElse(null),
                     metadata == null ? null : metadata.getThumbCoverURL(),
-                    PLACEHOLDER_COVER_URL
+                    Utils.PLACEHOLDER_COVER_URL
             );
-            String cover = firstNonBlank(
+            String cover = Utils.firstNonBlank(
                     resourceUrl(installation.coverArt()).orElse(null),
                     resourceUrl(installation.installBackground()).orElse(null),
                     resourceUrl(installation.background()).orElse(null),
                     metadata == null ? null : metadata.getCoverURL(),
-                    PLACEHOLDER_COVER_URL
+                    Utils.PLACEHOLDER_COVER_URL
             );
 
             BattleNetGame game = BattleNetGame.builder(
@@ -178,7 +172,7 @@ public final class BattleNetPlatform implements Platform {
                     .build();
             resourceUrl(installation.logo()).ifPresent(game::setCoverLogoImageURL);
 
-            javafx.application.Platform.runLater(() -> {
+            Utils.runOnFxThread(() -> {
                 if (!Database.getInstance().addGame(game))
                     Database.getInstance().updateGame(game, game);
             });
@@ -219,8 +213,8 @@ public final class BattleNetPlatform implements Platform {
         if (installation == null || Boolean.TRUE.equals(installation.hidden))
             return false;
 
-        String productCode = firstNonBlank(installation.productCode, installation.uid);
-        return productCode != null && !NON_GAME_PRODUCT_CODES.contains(productCode.toLowerCase(Locale.ROOT));
+        String productCode = Utils.firstNonBlank(installation.productCode, installation.uid);
+        return !productCode.isBlank() && !NON_GAME_PRODUCT_CODES.contains(productCode.toLowerCase(Locale.ROOT));
     }
 
     private static Optional<BattleNetInstallation> toInstallation(Path productDbPath, BattleNetProductDbParser.ProductInstall installation) {
@@ -238,8 +232,8 @@ public final class BattleNetPlatform implements Platform {
         Path agentCachePath = productDbPath != null
                 ? productDbPath.getParent().resolve("data").resolve("cache")
                 : null;
-        String productCode = firstNonBlank(installation.productCode, installation.uid);
-        if (productCode == null)
+        String productCode = Utils.firstNonBlank(installation.productCode, installation.uid);
+        if (productCode.isBlank())
             return Optional.empty();
 
         BattleNetNGDPTableParser.Table table = new BattleNetNGDPTableParser.Table(Collections.emptyList(), Collections.emptyList(), Collections.emptyMap());
@@ -427,19 +421,15 @@ public final class BattleNetPlatform implements Platform {
         if (installation.settings == null || installation.settings.installPath == null || installation.settings.installPath.isBlank())
             return Optional.empty();
 
-        try {
-            Path path = Path.of(installation.settings.installPath).normalize();
-            return Files.isDirectory(path) ? Optional.of(path) : Optional.empty();
-        } catch (InvalidPathException exception) {
-            return Optional.empty();
-        }
+        Path path = Utils.toPathOrNull(installation.settings.installPath);
+        return path != null && Files.isDirectory(path) ? Optional.of(path) : Optional.empty();
     }
 
     private static String versionString(BattleNetProductDbParser.ProductInstall installation) {
         if (installation.cachedProductState == null || installation.cachedProductState.baseProductState == null)
             return "";
 
-        return firstNonBlank(
+        return Utils.firstNonBlank(
                 installation.cachedProductState.baseProductState.currentVersionStr,
                 installation.cachedProductState.baseProductState.currentVersion,
                 ""
@@ -599,15 +589,6 @@ public final class BattleNetPlatform implements Platform {
         return resource
                 .filter(resolvedResource -> Files.isRegularFile(resolvedResource.cachePath()))
                 .map(resolvedResource -> resolvedResource.cachePath().toUri().toString());
-    }
-
-    private static String firstNonBlank(String... values) {
-        for (String value : values) {
-            if (value != null && !value.isBlank())
-                return value;
-        }
-
-        return null;
     }
 
     private record CatalogMatch(BattleNetCatalogParser.Catalog catalog, BattleNetCatalogParser.BaseProduct base) {

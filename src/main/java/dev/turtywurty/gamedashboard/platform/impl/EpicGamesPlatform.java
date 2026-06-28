@@ -10,10 +10,10 @@ import dev.turtywurty.gamedashboard.platform.ManualEntryForm;
 import dev.turtywurty.gamedashboard.platform.Platform;
 import dev.turtywurty.gamedashboard.util.OperatingSystem;
 import dev.turtywurty.gamedashboard.util.ProgressMonitor;
+import dev.turtywurty.gamedashboard.util.Utils;
 import javafx.scene.image.Image;
 
 import java.nio.file.Files;
-import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
@@ -23,7 +23,6 @@ import java.util.function.Consumer;
 
 public final class EpicGamesPlatform implements Platform {
     private static final Gson GSON = new Gson();
-    private static final String PLACEHOLDER_COVER_URL = "https://fakeimg.pl/35x35";
 
     private static void addEpicGames(ProgressMonitor progressMonitor, Path path) {
         if (!isValidManifestsDirectory(path)) {
@@ -71,13 +70,13 @@ public final class EpicGamesPlatform implements Platform {
                             manifestPath
                     )
                     .images(
-                            result == null ? PLACEHOLDER_COVER_URL : result.getThumbCoverURL(),
-                            result == null ? PLACEHOLDER_COVER_URL : result.getCoverURL()
+                            result == null ? Utils.PLACEHOLDER_COVER_URL : result.getThumbCoverURL(),
+                            result == null ? Utils.PLACEHOLDER_COVER_URL : result.getCoverURL()
                     )
                     .igdbGameId(result == null ? null : result.getIgdbGameId())
                     .nickname(title)
                     .build();
-            javafx.application.Platform.runLater(() -> Database.getInstance().addGame(game));
+            Utils.runOnFxThread(() -> Database.getInstance().addGame(game));
         } catch (Exception exception) {
             GameDashboardApp.LOGGER.error("Failed to read Epic Games manifest: {}", manifestPath, exception);
         } finally {
@@ -100,18 +99,11 @@ public final class EpicGamesPlatform implements Platform {
     }
 
     private static boolean isValidManifestsDirectory(String manifestsDirectory) {
-        if (manifestsDirectory == null || manifestsDirectory.isBlank())
-            return false;
-
-        try {
-            return isValidManifestsDirectory(Path.of(manifestsDirectory));
-        } catch (InvalidPathException exception) {
-            return false;
-        }
+        return isValidManifestsDirectory(Utils.toPathOrNull(manifestsDirectory));
     }
 
     private static boolean isValidManifestsDirectory(Path manifestsDirectory) {
-        return Files.isDirectory(manifestsDirectory);
+        return manifestsDirectory != null && Files.isDirectory(manifestsDirectory);
     }
 
     private static boolean isManifestFile(Path file) {

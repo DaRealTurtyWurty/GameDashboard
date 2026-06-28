@@ -13,15 +13,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -244,6 +236,11 @@ public final class OSUtils {
         }
     }
 
+    public static String readShortcutText(Path shortcutPath) throws IOException {
+        byte[] bytes = Files.readAllBytes(shortcutPath);
+        return new String(bytes, StandardCharsets.UTF_16LE) + "\n" + new String(bytes, StandardCharsets.ISO_8859_1);
+    }
+
     private static String quotePowerShellString(String value) {
         return "'" + value.replace("'", "''") + "'";
     }
@@ -332,24 +329,33 @@ public final class OSUtils {
         if (OperatingSystem.CURRENT != OperatingSystem.WINDOWS)
             return Optional.empty();
 
-        Path startMenuPath1 = Path.of(System.getenv("APPDATA"), "Microsoft", "Windows", "Start Menu", "Programs", name);
-        Path startMenuPath2 = Path.of(System.getenv("PROGRAMDATA"), "Microsoft", "Windows", "Start Menu", "Programs", name);
-
-        Stream<Path> startMenuPaths = Stream.of(startMenuPath1, startMenuPath2)
-                .filter(Files::exists);
-        return startMenuPaths.flatMap(start -> {
-                    try {
-                        return Files.walk(start);
-                    } catch (IOException exception) {
-                        GameDashboardApp.LOGGER.error("Failed to walk through Start Menu path {}", start, exception);
-                        return Stream.empty();
-                    }
-                })
-                .filter(path -> path.toString().endsWith(".lnk"))
+        return findStartMenuShortcuts(name).stream()
                 .map(OSUtils::resolveShortcut)
                 .filter(Optional::isPresent)
                 .map(Optional::get)
                 .filter(Files::isRegularFile)
                 .findFirst();
+    }
+
+    public static List<Path> findStartMenuShortcuts(String name) {
+        if (OperatingSystem.CURRENT != OperatingSystem.WINDOWS)
+            return List.of();
+
+        Path startMenuPath1 = Path.of(System.getenv("APPDATA"), "Microsoft", "Windows", "Start Menu", "Programs", name);
+        Path startMenuPath2 = Path.of(System.getenv("PROGRAMDATA"), "Microsoft", "Windows", "Start Menu", "Programs", name);
+
+        List<Path> shortcuts = new ArrayList<>();
+        Stream.of(startMenuPath1, startMenuPath2)
+                .filter(Files::exists)
+                .forEach(start -> {
+                    try (Stream<Path> paths = Files.walk(start)) {
+                        paths.filter(path -> path.toString().endsWith(".lnk"))
+                                .forEach(shortcuts::add);
+                    } catch (IOException exception) {
+                        GameDashboardApp.LOGGER.error("Failed to walk through Start Menu path {}", start, exception);
+                    }
+                });
+
+        return List.copyOf(shortcuts);
     }
 }

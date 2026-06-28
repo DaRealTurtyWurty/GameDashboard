@@ -1,5 +1,6 @@
 package dev.turtywurty.gamedashboard.util;
 
+import javafx.application.Platform;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Insets;
 import javafx.scene.image.Image;
@@ -8,9 +9,14 @@ import javafx.scene.layout.BackgroundFill;
 import javafx.scene.paint.Color;
 
 import java.awt.image.BufferedImage;
+import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
 import java.util.Arrays;
 
 public class Utils {
+    public static final String PLACEHOLDER_COVER_URL = "https://fakeimg.pl/35x35";
+
     public static Background createBackground(String hexColor) {
         return createBackground(Color.web(hexColor));
     }
@@ -25,6 +31,62 @@ public class Utils {
 
     public static Insets createInsets(int topRightBottomLeft) {
         return new Insets(topRightBottomLeft);
+    }
+
+    public static String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank())
+                return value;
+        }
+
+        return "";
+    }
+
+    public static boolean isReadableDirectory(String value) {
+        if (value == null || value.isBlank())
+            return false;
+
+        try {
+            Path path = Path.of(value);
+            return Files.isDirectory(path) && Files.isReadable(path);
+        } catch (InvalidPathException exception) {
+            return false;
+        }
+    }
+
+    public static Path toPathOrNull(String value) {
+        if (value == null || value.isBlank())
+            return null;
+
+        try {
+            return Path.of(value.replace("\"", "").trim()).normalize();
+        } catch (InvalidPathException exception) {
+            return null;
+        }
+    }
+
+    public static String toImageUrl(Path imagePath) {
+        return imagePath == null ? null : imagePath.toUri().toString();
+    }
+
+    public static String stripExtension(String filename) {
+        if (filename == null || filename.isBlank())
+            return "";
+
+        int separator = filename.lastIndexOf('.');
+        return separator <= 0 ? filename : filename.substring(0, separator);
+    }
+
+    public static boolean isPlaceholderUrl(String value) {
+        return value == null || value.isBlank() || PLACEHOLDER_COVER_URL.equals(value);
+    }
+
+    public static void runOnFxThread(Runnable action) {
+        if (Platform.isFxApplicationThread()) {
+            action.run();
+        } else {
+            Platform.runLater(action);
+        }
     }
 
     // https://www.geeksforgeeks.org/java-program-to-implement-levenshtein-distance-computing-algorithm/
