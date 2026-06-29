@@ -29,6 +29,11 @@ public class Game {
         this.launchTarget = launchTarget;
     }
 
+    public Game(String title, String description, LaunchTarget launchTarget, String type) {
+        this(title, description, launchTarget);
+        this.type = type;
+    }
+
     public Game(
             String title,
             String description,
