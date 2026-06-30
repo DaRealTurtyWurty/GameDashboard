@@ -3,6 +3,7 @@ package dev.turtywurty.gamedashboard.platform;
 import dev.turtywurty.gamedashboard.platform.impl.*;
 import dev.turtywurty.gamedashboard.platform.impl.battle_net.BattleNetPlatform;
 import dev.turtywurty.gamedashboard.platform.impl.ea.EAPlatform;
+import dev.turtywurty.gamedashboard.platform.impl.individual.RobloxPlatform;
 import dev.turtywurty.gamedashboard.platform.impl.individual.Wizard101Platform;
 
 import java.util.ArrayList;
@@ -26,6 +27,7 @@ public final class Platforms {
         registerPlatform(new MicrosoftStorePlatform());
         registerPlatform(new GooglePlayGamesPlatform());
         registerPlatform(new Wizard101Platform());
+        registerPlatform(new RobloxPlatform());
     }
 
     public static void registerPlatform(Platform platform) {
